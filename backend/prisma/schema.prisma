@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+
+  buses     Bus[]    @relation("OperatorBuses")
+
+  @@map("users")
+}
+
+model OperatorKey {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+  usedBy    Int?     // User ID who used this key
+  createdBy Int      // Admin user ID who created this key
+
+  @@map("operator_keys")
+}
+
+enum Role {
+  USER
+  BUS_OPERATOR
+  ADMIN
+}
+
+
+
+model Bus {
+  id          Int      @id @default(autoincrement())
+  name        String
+  numberPlate String @unique
+  routeFrom   String
+  routeTo     String
+  acType      String
+  type        String
+  seatCount   Int
+  operatorId  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  priceSeater  Float   // 👈 add this
+  priceSleeper Float   // 👈 add this
+
+  operator    User     @relation("OperatorBuses", fields: [operatorId], references: [id])
+  trips       Trip[]
+  seats       Seat[]
+  recurringTrips RecurringTrip[]
+}
+
+
+
+
+
+model Seat {
+  id        Int    @id @default(autoincrement())
+  busId     Int
+  seatNumber String
+  type      String // sleeper / seater
+  position  String // upper / lower
+  price     Int
+
+  bus       Bus    @relation(fields: [busId], references: [id])
+}
+
+model Trip {
+  id        Int      @id @default(autoincrement())
+  busId     Int
+  bus       Bus      @relation(fields: [busId], references: [id])
+  date      DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+
+model RecurringTrip {
+  id            Int      @id @default(autoincrement())
+  busId         Int
+  departureTime String   // "22:00"
+  arrivalTime   String   // "05:30"
+  daysOfWeek    String[] // e.g., ["Mon", "Wed", "Fri"]
+
+  bus           Bus      @relation(fields: [busId], references: [id])
+}
+
+
+

@@ -1,0 +1,45 @@
+.deck-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.bus-front, .bus-rear {
+  width: 100%;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.seat-grid {
+  display: flex;
+  justify-content: center;
+  gap: 20px; /* Adjust spacing between left and right seats */
+}
+
+.seat-row {
+  display: flex;
+  gap: 10px; /* Space between seats in a row */
+  margin-bottom: 10px;
+}
+
+.seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80px;
+  height: 100px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 5px;
+  cursor: pointer;
+}
+
+.seat-number, .seat-price {
+  font-size: 12px;
+}
+
+.empty-space {
+  width: 80px;
+  height: 100px;
+}

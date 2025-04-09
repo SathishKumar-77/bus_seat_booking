@@ -1,0 +1,88 @@
+/* Header Styles */
+.main-header {
+  background-color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 0.5rem 0;
+}
+
+.logo-icon {
+  color: #4361ee;
+  font-size: 1.8rem;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #2c3e50;
+}
+
+.nav-link {
+  font-weight: 500;
+  color: #2c3e50;
+  padding: 0.5rem 1rem;
+  margin: 0 0.25rem;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: #4361ee;
+  background-color: rgba(67, 97, 238, 0.1);
+}
+
+.operator-dashboard-link {
+  display: flex;
+  align-items: center;
+  color: #4361ee;
+}
+
+.operator-dashboard-link .icon {
+  margin-right: 0.25rem;
+}
+
+.user-icon {
+  color: #4361ee;
+  margin-right: 0.25rem;
+}
+
+.login-link {
+  color: #4361ee;
+}
+
+.register-btn {
+  background-color: #4361ee;
+  border: none;
+}
+
+.register-btn:hover {
+  background-color: #3a56d4;
+}
+
+.logout-btn {
+  border-color: #ef233c;
+  color: #ef233c;
+}
+
+.logout-btn:hover {
+  background-color: #ef233c;
+  color: white;
+}
+
+
+.form-check-input{
+  width: 10px;
+}
+@media (max-width: 992px) {
+  .navbar-collapse {
+    padding-top: 1rem;
+  }
+  
+  .nav-link {
+    margin: 0.25rem 0;
+  }
+  
+  .register-btn, .logout-btn {
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+}

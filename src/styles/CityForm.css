@@ -1,0 +1,27 @@
+/* Custom styles for the component */
+.z-index-1 {
+    z-index: 1000;
+  }
+  
+  /* Animation for the swap button */
+  @keyframes rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(180deg); }
+  }
+  
+  /* Custom card shadow */
+  .card {
+    border-radius: 15px;
+    overflow: hidden;
+  }
+  
+  /* Input focus effect */
+  .form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    border-color: #86b7fe;
+  }
+  
+  /* Suggestion list item hover effect */
+  .list-group-item-action:hover {
+    background-color: #f8f9fa;
+  }
