@@ -6,6 +6,7 @@ import AuthLayout from '../components/AuthLayout'
 import { useAuth } from '../context/AuthContext'
 import '../styles/Auth.css'
 
+
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' })
   const { login } = useAuth()
@@ -16,6 +17,11 @@ const Login = () => {
   const [showSuccess, setShowSuccess] = useState(false)
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+
+
+  const apiUrl = `${import.meta.env.VITE_API_URL}/api/auth/login`
+
+  console.log("ULR", apiUrl);
 
   useEffect(() => {
     if (location.state?.registrationSuccess) {
@@ -49,7 +55,7 @@ const Login = () => {
     if (!validate()) return
     setIsLoading(true)
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

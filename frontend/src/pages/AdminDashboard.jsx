@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button, Card, ListGroup, Alert } from 'react-bootstrap'
 import { FaKey, FaCopy, FaTrash } from 'react-icons/fa'
 
+
 const AdminDashboard = () => {
   const [keys, setKeys] = useState([])
   const [newKey, setNewKey] = useState(null)
@@ -12,7 +13,7 @@ const AdminDashboard = () => {
 
   const generateKey = async () => {
     try {
-        const response = await fetch('http://localhost:5000/api/admin/generate-key', {
+        const response = await fetch('${import.meta.env.VITE_API_URL}/api/admin/generate-key', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
