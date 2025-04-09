@@ -1,26 +1,30 @@
-.deck-container {
+.seat-grid {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
 }
 
-.bus-front, .bus-rear {
-  width: 100%;
-  text-align: center;
-  margin: 10px 0;
-}
-
-.seat-grid {
+.seat-row.dual-row {
   display: flex;
   justify-content: center;
-  gap: 20px; /* Adjust spacing between left and right seats */
+  width: 100%;
+  margin-bottom: 10px;
 }
 
-.seat-row {
+.left-row, .right-row {
   display: flex;
-  gap: 10px; /* Space between seats in a row */
-  margin-bottom: 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.left-row {
+  margin-right: 20px;
+}
+
+.aisle {
+  width: 40px; /* Adjust aisle width as needed */
+  height: 100%;
 }
 
 .seat {
@@ -29,17 +33,20 @@
   align-items: center;
   width: 80px;
   height: 100px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  padding: 5px;
-  cursor: pointer;
+  margin: 5px;
+}
+
+.seat-icon {
+  font-size: 24px;
 }
 
 .seat-number, .seat-price {
   font-size: 12px;
 }
 
-.empty-space {
-  width: 80px;
-  height: 100px;
+.selected-check {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  color: green;
 }

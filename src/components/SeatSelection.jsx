@@ -1,4 +1,3 @@
-// components/SeatSelection.jsx
 import React, { useState, useEffect } from 'react';
 import { Tab, Tabs, Container, Button, Badge, Row, Col, Form } from 'react-bootstrap';
 import { FaChair, FaBed, FaUserAlt, FaArrowRight, FaTimes, FaCheck } from 'react-icons/fa';
@@ -6,7 +5,7 @@ import '../styles/SeatSelection.css';
 
 const SeatSelection = ({ busId, navigate }) => {
   const [busData, setBusData] = useState(null);
-  const [seatLayout, setSeatLayout] = useState(null);
+  const [seatLayout, setSeatLayout] = useState({ upper: [], lower: [] });
   const [activeTab, setActiveTab] = useState('upper');
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [passengerDetails, setPassengerDetails] = useState([]);
@@ -17,15 +16,14 @@ const SeatSelection = ({ busId, navigate }) => {
   useEffect(() => {
     const fetchBusData = async () => {
       try {
-        const response = await fetch(`/api/bus/${busId}`);
+        const response = await fetch(`http://localhost:5000/bus/${busId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch bus data');
         }
         const data = await response.json();
         setBusData(data);
-        const layout = generateSeatLayout(mapBusType(data), data.seats);
-        setSeatLayout(layout);
-        setActiveTab(layout.upper ? 'upper' : 'lower');
+        setSeatLayout(generateSeatLayout(data));
+        setActiveTab(data.type.includes('sleeper') ? 'upper' : 'lower');
       } catch (err) {
         setError(err.message);
         console.error('Error fetching bus data:', err);
@@ -37,169 +35,73 @@ const SeatSelection = ({ busId, navigate }) => {
     fetchBusData();
   }, [busId]);
 
-  // Map bus type from database to one of the predefined configurations
-  const mapBusType = (bus) => {
-    const seatCount = bus.seatCount;
-    const hasSleeper = bus.seats.some(seat => seat.type === 'sleeper');
-    
-    if (seatCount === 28 && !hasSleeper) {
-      return '28_seater_only';
-    } else if (seatCount === 42 && hasSleeper) {
-      return '14_sleeper_28_seater';
-    } else if (seatCount === 28 && hasSleeper) {
-      return '14_sleeper_14_sleeper';
-    }
-    return '28_seater_only'; // Default fallback
-  };
+  const generateSeatLayout = (bus) => {
+    if (!bus || !bus.seats) return { upper: [], lower: [] };
 
-  const generateSeatLayout = (type, dbSeats) => {
-    const seatMap = new Map(dbSeats.map(seat => [seat.seatNumber, seat]));
+    // Separate upper and lower deck seats
+    const upperSeats = bus.seats.filter(seat => seat.position === 'upper');
+    const lowerSeats = bus.seats.filter(seat => seat.position === 'lower');
 
-    if (type === '28_seater_only') {
-      const lowerDeck = [];
-      for (let row = 1; row <= 7; row++) {
-        const rowSeats = [];
-        for (let col = 0; col < 4; col++) {
-          const seatNumber = `${row}${String.fromCharCode(65 + col)}`;
-          const dbSeat = seatMap.get(`L${seatNumber}`) || {};
-          rowSeats.push({
-            id: dbSeat.id || `L-${seatNumber}`,
-            number: seatNumber,
-            type: 'standard',
-            status: dbSeat.id ? (dbSeat.status || 'available') : 'available',
-            price: dbSeat.price || 500,
-            deck: 'lower',
-            position: col < 2 ? 'left' : 'right'
-          });
-        }
-        lowerDeck.push(rowSeats);
-      }
-      return { lower: lowerDeck };
-    } 
-    else if (type === '14_sleeper_28_seater') {
-      const upperDeck = [];
-      for (let row = 1; row <= 5; row++) {
-        const rowSeats = [];
-        if (row <= 4) {
-          const seatNumber = `U${row}A`;
-          const dbSeat = seatMap.get(seatNumber) || {};
-          rowSeats.push({
-            id: dbSeat.id || `U-${seatNumber}`,
-            number: seatNumber,
-            type: 'sleeper',
-            status: dbSeat.id ? (dbSeat.status || 'available') : 'available',
-            price: dbSeat.price || 800,
-            deck: 'upper',
-            position: 'left'
-          });
+    // Function to organize seats into proper bus layout with two rows
+    const organizeSeats = (seats, isSleeper = false) => {
+      const rows = [];
+      const seatsByRow = {};
+
+      // Group seats by row number
+      seats.forEach(seat => {
+        const rowNum = parseInt(seat.seatNumber.replace(/\D/g, ''));
+        if (!seatsByRow[rowNum]) seatsByRow[rowNum] = { left: [], right: [] };
+
+        const seatData = {
+          id: seat.id,
+          number: seat.seatNumber,
+          type: seat.type,
+          status: seat.status || 'available',
+          price: seat.price || (isSleeper ? 800 : 500),
+          deck: seat.position,
+          position: seat.seatNumber.includes('A') || seat.seatNumber.includes('B') ? 'left' : 'right'
+        };
+
+        if (seatData.position === 'left') {
+          seatsByRow[rowNum].left.push(seatData);
         } else {
-          rowSeats.push(null);
+          seatsByRow[rowNum].right.push(seatData);
         }
-        for (let col = 1; col <= 2; col++) {
-          const seatNumber = `U${row}${String.fromCharCode(65 + col)}`;
-          const dbSeat = seatMap.get(seatNumber) || {};
-          rowSeats.push({
-            id: dbSeat.id || `U-${seatNumber}`,
-            number: seatNumber,
-            type: 'sleeper',
-            status: dbSeat.id ? (dbSeat.status || 'available') : 'available',
-            price: dbSeat.price || 800,
-            deck: 'upper',
-            position: 'right'
-          });
-        }
-        upperDeck.push(rowSeats);
-      }
+      });
 
-      const lowerDeck = [];
-      for (let row = 1; row <= 7; row++) {
+      // Sort rows numerically
+      const rowNumbers = Object.keys(seatsByRow).map(Number).sort((a, b) => a - b);
+
+      // Create two-row layout with left and right sides
+      rowNumbers.forEach(rowNum => {
         const rowSeats = [];
-        for (let col = 0; col < 4; col++) {
-          const seatNumber = `L${row}${String.fromCharCode(65 + col)}`;
-          const dbSeat = seatMap.get(seatNumber) || {};
-          rowSeats.push({
-            id: dbSeat.id || `L-${seatNumber}`,
-            number: seatNumber,
-            type: 'standard',
-            status: dbSeat.id ? (dbSeat.status || 'available') : 'available',
-            price: dbSeat.price || 500,
-            deck: 'lower',
-            position: col < 2 ? 'left' : 'right'
-          });
-        }
-        lowerDeck.push(rowSeats);
-      }
-      return { upper: upperDeck, lower: lowerDeck };
-    } 
-    else if (type === '14_sleeper_14_sleeper') {
-      const upperDeck = [];
-      const lowerDeck = [];
-      
-      for (let row = 1; row <= 5; row++) {
-        const upperRowSeats = [];
-        const lowerRowSeats = [];
-        
-        if (row <= 4) {
-          const upperSeatNumber = `U${row}A`;
-          const lowerSeatNumber = `L${row}A`;
-          const upperDbSeat = seatMap.get(upperSeatNumber) || {};
-          const lowerDbSeat = seatMap.get(lowerSeatNumber) || {};
-          
-          upperRowSeats.push({
-            id: upperDbSeat.id || `U-${upperSeatNumber}`,
-            number: upperSeatNumber,
-            type: 'sleeper',
-            status: upperDbSeat.id ? (upperDbSeat.status || 'available') : 'available',
-            price: upperDbSeat.price || 800,
-            deck: 'upper',
-            position: 'left'
-          });
-          lowerRowSeats.push({
-            id: lowerDbSeat.id || `L-${lowerSeatNumber}`,
-            number: lowerSeatNumber,
-            type: 'sleeper',
-            status: lowerDbSeat.id ? (lowerDbSeat.status || 'available') : 'available',
-            price: lowerDbSeat.price || 800,
-            deck: 'lower',
-            position: 'left'
-          });
-        } else {
-          upperRowSeats.push(null);
-          lowerRowSeats.push(null);
-        }
-        
-        for (let col = 1; col <= 2; col++) {
-          const upperSeatNumber = `U${row}${String.fromCharCode(65 + col)}`;
-          const lowerSeatNumber = `L${row}${String.fromCharCode(65 + col)}`;
-          const upperDbSeat = seatMap.get(upperSeatNumber) || {};
-          const lowerDbSeat = seatMap.get(lowerSeatNumber) || {};
-          
-          upperRowSeats.push({
-            id: upperDbSeat.id || `U-${upperSeatNumber}`,
-            number: upperSeatNumber,
-            type: 'sleeper',
-            status: upperDbSeat.id ? (upperDbSeat.status || 'available') : 'available',
-            price: upperDbSeat.price || 800,
-            deck: 'upper',
-            position: 'right'
-          });
-          lowerRowSeats.push({
-            id: lowerDbSeat.id || `L-${lowerSeatNumber}`,
-            number: lowerSeatNumber,
-            type: 'sleeper',
-            status: lowerDbSeat.id ? (lowerDbSeat.status || 'available') : 'available',
-            price: lowerDbSeat.price || 800,
-            deck: 'lower',
-            position: 'right'
-          });
-        }
-        
-        upperDeck.push(upperRowSeats);
-        lowerDeck.push(lowerRowSeats);
-      }
-      
-      return { upper: upperDeck, lower: lowerDeck };
-    }
+        const { left, right } = seatsByRow[rowNum];
+
+        // Sort left seats (A, B)
+        left.sort((a, b) => a.number.localeCompare(b.number));
+
+        // Sort right seats (C, D)
+        right.sort((a, b) => a.number.localeCompare(b.number));
+
+        // Add left seats to the first row
+        left.forEach(seat => rowSeats.push(seat));
+
+        // Add aisle (empty space)
+        rowSeats.push(null);
+
+        // Add right seats to the second row
+        right.forEach(seat => rowSeats.push(seat));
+
+        rows.push(rowSeats);
+      });
+
+      return rows;
+    };
+
+    return {
+      upper: upperSeats.length > 0 ? organizeSeats(upperSeats, true) : [],
+      lower: lowerSeats.length > 0 ? organizeSeats(lowerSeats) : []
+    };
   };
 
   const handleSeatClick = (seat) => {
@@ -292,7 +194,7 @@ const SeatSelection = ({ busId, navigate }) => {
   };
 
   const renderDeck = (deck) => {
-    if (!seatLayout || !seatLayout[deck]) return null;
+    if (!seatLayout || seatLayout[deck].length === 0) return null;
 
     return (
       <div className="deck-container">
@@ -305,9 +207,9 @@ const SeatSelection = ({ busId, navigate }) => {
         
         <div className="seat-grid">
           {seatLayout[deck].map((row, rowIndex) => (
-            <div key={rowIndex} className="seat-row">
-              {row.map((seat) => (
-                seat ? (
+            <div key={rowIndex} className="seat-row dual-row">
+              <div class left-row>
+                {row.filter(seat => seat && seat.position === 'left').map((seat, idx) => (
                   <div
                     key={seat.id}
                     className={`seat ${seat.type} ${seat.status} ${isSeatSelected(seat.id) ? 'selected' : ''}`}
@@ -318,10 +220,23 @@ const SeatSelection = ({ busId, navigate }) => {
                     <div className="seat-price">৳{seat.price}</div>
                     {isSeatSelected(seat.id) && <FaCheck className="selected-check" />}
                   </div>
-                ) : (
-                  <div key={`empty-${rowIndex}`} className="empty-space"></div>
-                )
-              ))}
+                ))}
+              </div>
+              <div className="aisle"></div>
+              <div className="right-row">
+                {row.filter(seat => seat && seat.position === 'right').map((seat, idx) => (
+                  <div
+                    key={seat.id}
+                    className={`seat ${seat.type} ${seat.status} ${isSeatSelected(seat.id) ? 'selected' : ''}`}
+                    onClick={() => handleSeatClick(seat)}
+                  >
+                    {renderSeatIcon(seat)}
+                    <div className="seat-number">{seat.number}</div>
+                    <div className="seat-price">৳{seat.price}</div>
+                    {isSeatSelected(seat.id) && <FaCheck className="selected-check" />}
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -347,7 +262,7 @@ const SeatSelection = ({ busId, navigate }) => {
         {busData ? `${busData.name} - ${busData.routeFrom} to ${busData.routeTo}` : 'Bus Seat Selection'}
       </h2>
 
-      {seatLayout?.upper && (
+      {seatLayout?.upper && seatLayout.upper.length > 0 && (
         <Tabs
           activeKey={activeTab}
           onSelect={(k) => setActiveTab(k)}
@@ -362,7 +277,7 @@ const SeatSelection = ({ busId, navigate }) => {
         </Tabs>
       )}
 
-      {!seatLayout?.upper && renderDeck('lower')}
+      {(!seatLayout?.upper || seatLayout.upper.length === 0) && renderDeck('lower')}
 
       <div className="selection-summary mt-4">
         <h4>Booking Summary</h4>
