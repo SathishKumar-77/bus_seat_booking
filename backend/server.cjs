@@ -9,6 +9,17 @@ const crypto = require('crypto')
 const { protect } = require('./middleware/auth')
 
 
+import cors from 'cors'; // or const cors = require('cors');
+
+const allowedOrigins = ['http://localhost:5173', 'https://bus-seat-booking-ebon.vercel.app'];
+
+
+app.use(cors({
+  origin: allowedOrigins, // ✅ Allow your frontend during development
+  credentials: true, // if using cookies/auth
+}));
+
+
 
 const app = express()
 const prisma = new PrismaClient()
@@ -313,7 +324,6 @@ app.post('/seats', async (req, res) => {
 
 
 
-
 app.get('/api/buses', async (req, res) => {
   let { operatorId } = req.query;
 
@@ -328,17 +338,27 @@ app.get('/api/buses', async (req, res) => {
       include: {
         operator: true,
         seats: true,
-        recurringTrips: true,
+        recurringTrips: true, // Already includes trips for each bus
       },
     });
 
-    res.json({ buses });
+    // Enhance response with trip details
+    const enrichedBuses = buses.map(bus => ({
+      ...bus,
+      trips: bus.recurringTrips.map(trip => ({
+        id: trip.id,
+        departureTime: trip.departureTime,
+        arrivalTime: trip.arrivalTime,
+        daysOfWeek: trip.daysOfWeek,
+      })),
+    }));
+
+    res.json({ buses: enrichedBuses });
   } catch (error) {
     console.error('❌ Error fetching buses:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 
 
 
@@ -349,22 +369,29 @@ app.delete('/bus/:id', async (req, res) => {
   try {
     const busId = parseInt(id);
 
-    // Step 1: Delete all seats associated with the bus
+    // Step 1: Check for associated recurring trips
+    const recurringTripsCount = await prisma.recurringTrip.count({
+      where: { busId },
+    });
+
+    if (recurringTripsCount > 0) {
+      return res.status(400).json({
+        error: 'Cannot delete bus with associated recurring trips',
+        message: 'Delete the associated recurring trip first.',
+      });
+    }
+
+    // Step 2: Delete all seats associated with the bus
     await prisma.seat.deleteMany({
       where: { busId },
     });
 
-    // Step 2: Delete all trips associated with the bus (if any)
+    // Step 3: Delete all trips associated with the bus (if any)
     await prisma.trip.deleteMany({
       where: { busId },
     });
 
-    // Step 3: Delete all recurring trips associated with the bus (if any)
-    await prisma.recurringTrip.deleteMany({
-      where: { busId },
-    });
-
-    // Step 4: Now delete the bus safely
+    // Step 4: Now delete the bus safely (no recurring trips to worry about)
     await prisma.bus.delete({
       where: { id: busId },
     });
@@ -454,14 +481,46 @@ app.get('/bus/:id', async (req, res) => {
 });
 
 
+// backend/routes/tripRoutes.js or wherever this route is defined
+// backend/routes/tripRoutes.js or wherever this route is defined
 app.get('/recurring-trips', async (req, res) => {
+  const operatorId = parseInt(req.query.operatorId);
+
   try {
+    if (!operatorId || isNaN(operatorId)) {
+      return res.status(400).json({ error: 'Valid operatorId is required' });
+    }
+
+    console.log('Fetching trips for operatorId:', operatorId); // Debug log
+
     const trips = await prisma.recurringTrip.findMany({
-      include: { bus: true }
+      where: {
+        operatorId: operatorId, // Filter by operatorId from RecurringTrip
+      },
+      include: {
+        bus: {
+          select: {
+            id: true,
+            name: true,
+            routeFrom: true,
+            routeTo: true,
+            priceSeater: true,
+            priceSleeper: true,
+          },
+        },
+      },
     });
+
+    console.log('Fetched trips:', trips); // Debug log to inspect the data
+
+    if (!trips || trips.length === 0) {
+      return res.json({ trips: [], message: 'No trips found for this operator' });
+    }
+
     res.json({ trips });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch trips' });
+  } catch (error) {
+    console.error('Error fetching recurring trips:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -489,21 +548,45 @@ app.put('/recurring-trips/:id', async (req, res) => {
 });
 
 
-
-
-
 app.post('/recurring-trips', async (req, res) => {
   try {
-    let { busId, departureTime, arrivalTime, daysOfWeek } = req.body;
+    let { busId, operatorId, departureTime, arrivalTime, daysOfWeek } = req.body;
 
-    // Convert busId to number if it's a string
-    if (typeof busId === 'string') {
-      busId = parseInt(busId, 10);
+    // Validate required fields
+    if (!busId || !operatorId || !departureTime || !arrivalTime || !daysOfWeek) {
+      return res.status(400).json({ error: 'Missing required fields: busId, operatorId, departureTime, arrivalTime, and daysOfWeek are required' });
+    }
+
+    // Convert busId and operatorId to numbers if they are strings
+    busId = typeof busId === 'string' ? parseInt(busId, 10) : busId;
+    operatorId = typeof operatorId === 'string' ? parseInt(operatorId, 10) : operatorId;
+
+    // Validate busId and operatorId existence
+    const busExists = await prisma.bus.findUnique({ where: { id: busId } });
+    const operatorExists = await prisma.user.findUnique({ where: { id: operatorId } });
+    if (!busExists) {
+      return res.status(400).json({ error: 'Invalid busId: Bus does not exist' });
+    }
+    if (!operatorExists) {
+      return res.status(400).json({ error: 'Invalid operatorId: User does not exist' });
+    }
+
+    // Check if a recurring trip already exists for this busId
+    const existingTrip = await prisma.recurringTrip.findFirst({
+      where: {
+        busId: busId,
+        operatorId: operatorId,
+      },
+    });
+
+    if (existingTrip) {
+      return res.status(400).json({ error: 'A recurring trip already exists for this bus. Only one trip per bus is allowed.' });
     }
 
     const trip = await prisma.recurringTrip.create({
       data: {
         busId,
+        operatorId,
         departureTime,
         arrivalTime,
         daysOfWeek,
@@ -513,11 +596,46 @@ app.post('/recurring-trips', async (req, res) => {
     res.json({ message: 'Recurring trip created', trip });
   } catch (err) {
     console.error('Error creating recurring trip:', err);
+    if (err.code === 'P2003') {
+      return res.status(400).json({ error: 'Invalid busId or operatorId: Check foreign key constraints', details: err.message });
+    }
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
 
 
+app.delete('/recurring-trips/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const tripId = parseInt(id);
+
+    // Check if the recurring trip exists
+    const existingTrip = await prisma.recurringTrip.findUnique({
+      where: { id: tripId },
+    });
+
+    if (!existingTrip) {
+      return res.status(404).json({
+        error: 'Recurring trip not found',
+        message: 'The trip you are trying to delete does not exist.',
+      });
+    }
+
+    // Delete the recurring trip
+    await prisma.recurringTrip.delete({
+      where: { id: tripId },
+    });
+
+    res.json({ message: '✅ Trip deleted successfully' });
+  } catch (error) {
+    console.error('❌ Error deleting recurring trip:', error);
+    res.status(500).json({
+      error: 'Failed to delete trip',
+      details: error.message,
+    });
+  }
+});
 
 app.post('/generate-daily-trips', async (req, res) => {
   const today = new Date();
@@ -597,76 +715,666 @@ app.post('/generate-daily-trips', async (req, res) => {
 
 
 
+// app.get('/api/bus', async (req, res) => {
+//   try {
+//     const { from, to, date } = req.query;
+
+//     if (!from || !to || !date) {
+//       return res.status(400).json({ error: 'Missing from, to or date parameter' });
+//     }
+
+//     // Convert selected date to weekday (e.g., "Sun")
+//     const weekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+//     const selectedDay = weekdayNames[new Date(date).getDay()];
+
+//     const buses = await prisma.bus.findMany({
+//       where: {
+//         routeFrom: from,
+//         routeTo: to,
+//         operator: {
+//           role: 'BUS_OPERATOR',
+//         },
+//         recurringTrips: {
+//           some: {
+//             daysOfWeek: {
+//               has: selectedDay,
+//             },
+//           },
+//         },
+//       },
+//       include: {
+//         operator: {
+//           select: {
+//             name: true,
+//           },
+//         },
+//         recurringTrips: true, // we will extract daysOfWeek from here
+//       },
+//     });
+
+//     const result = buses.map(bus => {
+//       // Find the matching recurring trip that includes the selected day
+//       const matchingTrip = bus.recurringTrips.find(rt => rt.daysOfWeek.includes(selectedDay));
+
+//       return {
+//         id: bus.id,
+//         name: bus.name,
+//         numberPlate: bus.numberPlate,
+//         departure: matchingTrip?.departureTime ?? '',
+//         arrival: matchingTrip?.arrivalTime ?? '',
+//         recurringDays: matchingTrip?.daysOfWeek ?? [], // ✅ INCLUDE recurring days
+//         fare: {
+//           seater: bus.priceSeater,
+//           sleeper: bus.priceSleeper,
+//         },
+//         type: bus.type,
+//         acType: bus.acType,
+//         availableSeats: bus.seatCount,
+//         operator: {
+//           name: bus.operator.name,
+//           rating: bus.operator.rating ?? null,
+//         },
+//       };
+//     });
+
+//     res.json(result);
+//   } catch (error) {
+//     console.error('Error fetching buses:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
+
+//After booking purpose
 app.get('/api/bus', async (req, res) => {
   try {
     const { from, to, date } = req.query;
 
+    // Validate required query parameters
     if (!from || !to || !date) {
-      return res.status(400).json({ error: 'Missing from, to or date parameter' });
+      return res.status(400).json({ error: 'Missing required query parameters (from, to, date)' });
     }
 
-    // Convert selected date to weekday (e.g., "Sun")
-    const weekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const selectedDay = weekdayNames[new Date(date).getDay()];
+    // Parse and validate date
+    const bookingDate = new Date(date);
+    if (isNaN(bookingDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use ISO format (e.g., 2025-04-23)' });
+    }
+    bookingDate.setHours(0, 0, 0, 0); // Set to start of the day
 
+    console.log(`Searching for buses: from=${from}, to=${to}, date=${bookingDate.toISOString()}`);
+
+    // Find buses with recurring trips, operator details, and acType from DB
     const buses = await prisma.bus.findMany({
       where: {
-        routeFrom: from,
-        routeTo: to,
-        operator: {
-          role: 'BUS_OPERATOR',
-        },
-        recurringTrips: {
-          some: {
-            daysOfWeek: {
-              has: selectedDay,
-            },
-          },
-        },
+        routeFrom: { equals: from, mode: 'insensitive' },
+        routeTo: { equals: to, mode: 'insensitive' }
       },
       include: {
+        recurringTrips: true,
+        seats: {
+          include: {
+            bookings: {
+              where: {
+                date: {
+                  gte: bookingDate,
+                  lt: new Date(bookingDate.getTime() + 24 * 60 * 60 * 1000) // End of the day
+                }
+              }
+            }
+          }
+        },
         operator: {
           select: {
-            name: true,
-          },
-        },
-        recurringTrips: true, // we will extract daysOfWeek from here
-      },
+            name: true // Fetch operator name from User model
+          }
+        }
+      }
     });
 
-    const result = buses.map(bus => {
-      // Find the matching recurring trip that includes the selected day
-      const matchingTrip = bus.recurringTrips.find(rt => rt.daysOfWeek.includes(selectedDay));
+    console.log(`Found buses:`, buses.map(b => b.id));
+    console.log(`Recurring trips for buses:`, buses.map(b => ({
+      busId: b.id,
+      recurringTrips: b.recurringTrips
+    })));
+
+    if (!buses || buses.length === 0) {
+      return res.status(404).json({ error: 'No buses found for the specified route and date' });
+    }
+
+    // Map response to match frontend expectations and filter non-operating buses
+    const busesWithDetails = buses.map(bus => {
+      const selectedDate = new Date(date);
+      const fullDayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+      const shortDay = {
+        Sunday: "Sun",
+        Monday: "Mon",
+        Tuesday: "Tue",
+        Wednesday: "Wed",
+        Thursday: "Thu",
+        Friday: "Fri",
+        Saturday: "Sat"
+      }[fullDayName];
+
+      console.log(`Checking bus ${bus.id} for day ${shortDay}, recurringTrips:`, bus.recurringTrips);
+
+      // Find matching recurring trip for the day
+      const trip = bus.recurringTrips.find(rt =>
+        Array.isArray(rt.daysOfWeek) && rt.daysOfWeek.includes(shortDay)
+      );
+
+      console.log(`Trip for bus ${bus.id}:`, trip);
+
+      if (!trip) {
+        return null; // Exclude non-operating buses
+      }
+
+      const seatsWithStatus = bus.seats.map(seat => ({
+        ...seat,
+        status: seat.bookings.length > 0 ? 'booked' : 'available',
+        isAvailable: seat.bookings.length === 0
+      }));
+
+      // Determine bus type and prices based on seats or type field
+      // Fallback to type string if Seat model doesn't have type
+      const hasSeaterSeats = bus.seats.some(seat => seat.type === 'seater') || bus.type.includes('seater');
+      const hasSleeperSeats = bus.seats.some(seat => seat.type === 'sleeper') || bus.type.includes('sleeper');
+      const seaterPrice = hasSeaterSeats ? (bus.priceSeater || 500) : null;
+      const sleeperPrice = hasSleeperSeats ? (bus.priceSleeper || 800) : null;
 
       return {
         id: bus.id,
         name: bus.name,
         numberPlate: bus.numberPlate,
-        departure: matchingTrip?.departureTime ?? '',
-        arrival: matchingTrip?.arrivalTime ?? '',
-        recurringDays: matchingTrip?.daysOfWeek ?? [], // ✅ INCLUDE recurring days
-        fare: {
-          seater: bus.priceSeater,
-          sleeper: bus.priceSleeper,
-        },
+        routeFrom: bus.routeFrom,
+        routeTo: bus.routeTo,
+        acType: bus.acType, // Fetched from DB, not hardcoded
         type: bus.type,
-        acType: bus.acType,
-        availableSeats: bus.seatCount,
-        operator: {
-          name: bus.operator.name,
-          rating: bus.operator.rating ?? null,
+        seatCount: bus.seatCount,
+        operatorId: bus.operatorId,
+        createdAt: bus.createdAt,
+        updatedAt: bus.updatedAt,
+        priceSeater: seaterPrice,
+        priceSleeper: sleeperPrice,
+        departure: trip.departureTime,
+        arrival: trip.arrivalTime,
+        fare: {
+          seater: seaterPrice ? `₹${seaterPrice.toFixed(2)}` : null,
+          sleeper: sleeperPrice ? `₹${sleeperPrice.toFixed(2)}` : null
         },
+        availableSeats: seatsWithStatus.filter(s => s.isAvailable).length,
+        amenities: [ 'WiFi', 'Charging'], // Remove if fetched from DB
+        operator: { name: bus.operator?.name || 'Unknown Operator', rating: 4.5 },
+        seats: seatsWithStatus,
+        requestedDate: bookingDate.toISOString().split('T')[0]
       };
-    });
+    }).filter(bus => bus !== null); // Strictly filter out non-operating buses
 
-    res.json(result);
+    console.log(`Filtered buses with details:`, busesWithDetails.map(b => b.id));
+
+    if (busesWithDetails.length === 0) {
+      return res.status(404).json({ error: 'No buses operate on the specified date for this route' });
+    }
+
+    res.json(busesWithDetails);
   } catch (error) {
     console.error('Error fetching buses:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/bus/:id - Fetch specific bus details with seat availability for a date
+app.get('/api/bus/:id', async (req, res) => {
+  try {
+    const busId = parseInt(req.params.id);
+    const { date } = req.query;
+
+    let bookingDate;
+    if (date) {
+      bookingDate = new Date(date);
+      if (isNaN(bookingDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid date format. Use ISO format (e.g., 2025-04-09)' });
+      }
+      bookingDate.setHours(0, 0, 0, 0);
+    } else {
+      bookingDate = new Date();
+      bookingDate.setHours(0, 0, 0, 0);
+    }
+
+    const bus = await prisma.bus.findUnique({
+      where: { id: busId },
+      include: {
+        seats: {
+          include: {
+            bookings: {
+              where: {
+                date: {
+                  gte: bookingDate,
+                  lt: new Date(bookingDate.getTime() + 24 * 60 * 60 * 1000)
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!bus) {
+      return res.status(404).json({ error: 'Bus not found' });
+    }
+
+    const seatsWithStatus = bus.seats.map(seat => ({
+      ...seat,
+      status: seat.bookings.length > 0 ? 'booked' : 'available',
+      isAvailable: seat.bookings.length === 0
+    }));
+
+    res.json({
+      id: bus.id,
+      name: bus.name,
+      numberPlate: bus.numberPlate,
+      routeFrom: bus.routeFrom,
+      routeTo: bus.routeTo,
+      acType: bus.acType,
+      type: bus.type,
+      seatCount: bus.seatCount,
+      operatorId: bus.operatorId,
+      createdAt: bus.createdAt,
+      updatedAt: bus.updatedAt,
+      priceSeater: bus.priceSeater,
+      priceSleeper: bus.priceSleeper,
+      seats: seatsWithStatus,
+      requestedDate: bookingDate.toISOString().split('T')[0]
+    });
+  } catch (error) {
+    console.error('Error fetching bus:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// app.post('/api/bookings', async (req, res) => {
+//   try {
+//     const { busId, totalPrice, seats, passengers, date, userId } = req.body;
+
+//     if (!busId || !totalPrice || !seats || !passengers || !date) {
+//       return res.status(400).json({ error: 'Missing required fields (busId, totalPrice, seats, passengers, date)' });
+//     }
+
+//     const bookingDate = new Date(date);
+//     if (isNaN(bookingDate.getTime())) {
+//       return res.status(400).json({ error: 'Invalid date format. Use ISO format (e.g., 2025-04-09)' });
+//     }
+
+//     if (!Array.isArray(seats) || seats.length === 0) {
+//       return res.status(400).json({ error: 'Seats must be a non-empty array of seat IDs' });
+//     }
+//     if (!Array.isArray(passengers) || passengers.length !== seats.length) {
+//       return res.status(400).json({ error: 'Passengers array must match the number of seats' });
+//     }
+
+//     const booking = await prisma.$transaction(async (tx) => {
+//       // Create booking with initial status 'confirmed'
+//       const createdBooking = await tx.booking.create({
+//         data: {
+//           busId: parseInt(busId),
+//           totalPrice: parseFloat(totalPrice),
+//           date: bookingDate,
+//           status: 'confirmed', // Set initial status to 'confirmed'
+//           userId: userId ? parseInt(userId) : null,
+//           seats: {
+//             connect: seats.map(seatId => ({ id: parseInt(seatId) }))
+//           },
+//           passengers: {
+//             create: passengers.map(passenger => ({
+//               name: passenger.name,
+//               gender: passenger.gender,
+//               age: parseInt(passenger.age)
+//             }))
+//           }
+//         },
+//         include: {
+//           seats: true,
+//           passengers: true
+//         }
+//       });
+
+//       // Update seat status (optional, consider per-date logic)
+//       await tx.seat.updateMany({
+//         where: { id: { in: seats.map(seatId => parseInt(seatId)) } },
+//         data: { status: 'booked' }
+//       });
+
+//       return createdBooking;
+//     }, {
+//       isolationLevel: 'Serializable' // Prevent race conditions
+//     });
+
+//     res.status(201).json(booking);
+//   } catch (error) {
+//     console.error('Error creating booking:', error);
+//     res.status(500).json({ error: 'Failed to create booking', details: error.message });
+//   }
+// });
+
+
+
+
+app.post('/api/bookings', async (req, res) => {
+  try {
+    console.log('Received request body:', req.body); // Log the full request body
+    const { busId, totalPrice, seats, passengers, date, userId } = req.body;
+
+    // Validate required fields
+    if (!busId || !totalPrice || !seats || !passengers || !date) {
+      return res.status(400).json({ 
+        error: 'Missing required fields (busId, totalPrice, seats, passengers, date)', 
+        received: { busId, totalPrice, seats, passengers, date } 
+      });
+    }
+
+    const bookingDate = new Date(date);
+    if (isNaN(bookingDate.getTime())) {
+      return res.status(400).json({ 
+        error: 'Invalid date format. Use ISO format (e.g., 2025-04-09)', 
+        receivedDate: date 
+      });
+    }
+
+    // Validate seats array
+    if (!Array.isArray(seats) || seats.length === 0) {
+      return res.status(400).json({ error: 'Seats must be a non-empty array', receivedSeats: seats });
+    }
+    const seatIds = seats.map(seat => {
+      if (typeof seat === 'number') return parseInt(seat);
+      if (typeof seat === 'object' && seat.id) return parseInt(seat.id);
+      return null; // Will be filtered out
+    }).filter(id => id !== null);
+    if (seatIds.length !== seats.length) {
+      return res.status(400).json({ error: 'Each seat must have a valid id', receivedSeats: seats });
+    }
+
+    // Validate passengers match seats
+    if (!Array.isArray(passengers) || passengers.length !== seatIds.length) {
+      return res.status(400).json({ 
+        error: 'Passengers array must match the number of seats', 
+        seatsLength: seatIds.length, 
+        passengersLength: passengers.length 
+      });
+    }
+
+    // Verify seats exist and are available
+    const availableSeats = await prisma.seat.findMany({
+      where: {
+        id: { in: seatIds },
+        status: 'available'
+      }
+    });
+    if (availableSeats.length !== seatIds.length) {
+      return res.status(400).json({ 
+        error: 'One or more seats are not available', 
+        requestedSeats: seatIds, 
+        availableSeats: availableSeats.map(s => s.id) 
+      });
+    }
+
+    const booking = await prisma.$transaction(async (tx) => {
+      // Create booking with connect for seats
+      const createdBooking = await tx.booking.create({
+        data: {
+          busId: parseInt(busId),
+          totalPrice: parseFloat(totalPrice),
+          date: bookingDate,
+          status: 'confirmed',
+          userId: userId ? parseInt(userId) : null,
+          seats: {
+            connect: seatIds.map(seatId => ({ id: seatId }))
+          },
+          passengers: {
+            create: passengers.map(passenger => ({
+              name: passenger.name,
+              gender: passenger.gender,
+              age: parseInt(passenger.age)
+            }))
+          }
+        },
+        include: {
+          seats: true,
+          passengers: true,
+          bookedSeats: true
+        }
+      });
+
+      // Create BookedSeats entries with bookingDate
+      await tx.bookedSeats.createMany({
+        data: seatIds.map(seatId => ({
+          bookingId: createdBooking.id,
+          seatId: seatId,
+          bookingDate: bookingDate
+        }))
+      });
+
+      // Update seat status to 'booked'
+      await tx.seat.updateMany({
+        where: { id: { in: seatIds } },
+        data: { status: 'booked' }
+      });
+
+      return createdBooking;
+    }, {
+      isolationLevel: 'Serializable'
+    });
+
+    res.status(201).json(booking);
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    res.status(500).json({ error: 'Failed to create booking', details: error.message });
   }
 });
 
 
+
+
+app.get('/api/bookings/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: { userId: parseInt(userId) }, // Show only confirmed bookings
+      include: {
+        seats: true,
+        passengers: true,
+        bus: true // Include bus details
+      }
+    });
+
+    res.json(bookings);
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch bookings', details: error.message });
+  }
+});
+
+
+
+app.delete('/api/bookings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log("Canceling booking with ID:", id);
+
+    if (!id) {
+      return res.status(400).json({ error: 'Booking ID is required' });
+    }
+
+    // Fetch the booking with its seats and bookedSeats
+    const booking = await prisma.booking.findUnique({
+      where: { id: parseInt(id) },
+      include: { seats: true, bookedSeats: true }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Start a transaction to ensure all changes are atomic
+    const updatedBooking = await prisma.$transaction(async (tx) => {
+      // Update booking status to 'canceled'
+      const updated = await tx.booking.update({
+        where: { id: parseInt(id) },
+        data: { status: 'canceled' },
+        include: { seats: true, passengers: true, bookedSeats: true }
+      });
+
+      // Remove entries from BookedSeats junction table
+      if (booking.bookedSeats && booking.bookedSeats.length > 0) {
+        await tx.bookedSeats.deleteMany({
+          where: { bookingId: parseInt(id) }
+        });
+        console.log(`Removed ${booking.bookedSeats.length} entries from BookedSeats for booking ${id}. Affected table:`, await prisma.$queryRaw`SELECT table_name FROM information_schema.tables WHERE table_name = 'BookedSeats'`);
+      } else {
+        console.log('No BookedSeats entries associated with this booking to remove.');
+      }
+
+      // Update seat statuses to 'available'
+      if (booking.seats && booking.seats.length > 0) {
+        await tx.seat.updateMany({
+          where: { id: { in: booking.seats.map(seat => seat.id) } },
+          data: { status: 'available' }
+        });
+        console.log(`Reverted ${booking.seats.length} seats to 'available' for booking ${id}`);
+      } else {
+        console.log('No seats associated with this booking to revert.');
+      }
+
+      return updated;
+    });
+
+    res.json(updatedBooking);
+  } catch (error) {
+    console.error('Error canceling booking:', error);
+    res.status(500).json({ error: 'Failed to cancel booking', details: error.message });
+  }
+});
+
+
+
+
+
+// app.delete('/api/bookings/:id', async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     console.log("Canceling booking with ID:", id);
+
+//     if (!id) {
+//       return res.status(400).json({ error: 'Booking ID is required' });
+//     }
+
+//     // Fetch the booking with its seats
+//     const booking = await prisma.booking.findUnique({
+//       where: { id: parseInt(id) },
+//       include: { seats: true }
+//     });
+
+//     if (!booking) {
+//       return res.status(404).json({ error: 'Booking not found' });
+//     }
+
+//     // Start a transaction to ensure all changes are atomic
+//     const updatedBooking = await prisma.$transaction(async (tx) => {
+//       // Update booking status to 'canceled'
+//       const updated = await tx.booking.update({
+//         where: { id: parseInt(id) },
+//         data: { status: 'canceled' },
+//         include: { seats: true, passengers: true }
+//       });
+
+//       // Remove entries from BookedSeats junction table
+//       if (booking.seats && booking.seats.length > 0) {
+//         await tx.bookedSeats.deleteMany({
+//           where: { bookingId: parseInt(id) }
+//         });
+//         console.log(`Removed ${booking.seats.length} entries from BookedSeats for booking ${id}`);
+
+//         // Update seat statuses to 'available'
+//         await tx.seat.updateMany({
+//           where: { id: { in: booking.seats.map(seat => seat.id) } },
+//           data: { status: 'available' }
+//         });
+//         console.log(`Reverted ${booking.seats.length} seats to 'available' for booking ${id}`);
+//       } else {
+//         console.log('No seats associated with this booking to revert.');
+//       }
+
+//       return updated;
+//     });
+
+//     res.json(updatedBooking);
+//   } catch (error) {
+//     console.error('Error canceling booking:', error);
+//     res.status(500).json({ error: 'Failed to cancel booking', details: error.message });
+//   }
+// });
+
+
+
+
+app.get('/api/bookings/operator/:operatorId', async (req, res) => {
+  try {
+    const { operatorId } = req.params;
+    console.log("Operator ID (User ID):", operatorId);
+
+    if (!operatorId) {
+      return res.status(400).json({ error: 'Operator ID is required' });
+    }
+
+    // Validate that the user is an operator
+    const operator = await prisma.user.findUnique({
+      where: { id: parseInt(operatorId) },
+      select: { role: true }
+    });
+
+    if (!operator || operator.role !== 'BUS_OPERATOR') {
+      return res.status(403).json({ error: 'Unauthorized: User is not a bus operator' });
+    }
+
+    // Debug: Check buses operated by this operator
+    const operatorBuses = await prisma.bus.findMany({
+      where: { operatorId: parseInt(operatorId) },
+      select: { id: true, name: true }
+    });
+    console.log("Buses operated by operator:", operatorBuses);
+
+    // Fetch bookings for buses operated by this operator
+    const bookings = await prisma.booking.findMany({
+      where: {
+        busId: {
+          in: operatorBuses.map(bus => bus.id)
+        }// Adjust if status differs
+      },
+      include: {
+        bus: true,
+        seats: true,
+        passengers: true
+      },
+      orderBy: {
+        createdAt: 'desc' // Latest bookings first
+      }
+    });
+
+    console.log("Found bookings:", bookings);
+
+    if (bookings.length === 0) {
+      console.log("No bookings found for operator buses.");
+    }
+
+    res.json(bookings);
+  } catch (error) {
+    console.error('Error fetching operator bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch operator bookings', details: error.message });
+  }
+});
 
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {

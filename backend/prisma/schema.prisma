@@ -26,6 +26,9 @@ model User {
 
 
   buses     Bus[]    @relation("OperatorBuses")
+  bookings  Booking[] @relation("UserBookings")
+  recurringTrips   RecurringTrip[] // 👈 Add this line
+
 
   @@map("users")
 }
@@ -67,6 +70,7 @@ model Bus {
   operator    User     @relation("OperatorBuses", fields: [operatorId], references: [id])
   trips       Trip[]
   seats       Seat[]
+  bookings    Booking[] @relation("BusBookings")
   recurringTrips RecurringTrip[]
 }
 
@@ -81,10 +85,14 @@ model Seat {
   type      String // sleeper / seater
   position  String // upper / lower
   price     Int
+  status    String @default("available") // Ensure this line is present
 
   bus       Bus    @relation(fields: [busId], references: [id])
-}
+  bookings  Booking[] @relation("BookedSeats")
+  bookedSeats BookedSeats[] // Opposite relation field added here
 
+  @@map("seats")
+}
 model Trip {
   id        Int      @id @default(autoincrement())
   busId     Int
@@ -99,12 +107,61 @@ model Trip {
 model RecurringTrip {
   id            Int      @id @default(autoincrement())
   busId         Int
+  operatorId    Int
   departureTime String   // "22:00"
   arrivalTime   String   // "05:30"
   daysOfWeek    String[] // e.g., ["Mon", "Wed", "Fri"]
 
   bus           Bus      @relation(fields: [busId], references: [id])
+  operator      User     @relation(fields: [operatorId], references: [id])
+}
+
+
+model Booking {
+  id          Int        @id @default(autoincrement())
+  busId       Int
+  userId      Int?       // Optional: Link to the user who made the booking
+  totalPrice  Float
+  date        DateTime   // New field to specify the booking date
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  status      String     @default("confirmed") // e.g., confirmed, pending, cancelled
+
+  bus         Bus        @relation(fields: [busId], references: [id], name: "BusBookings")
+  user        User?      @relation(fields: [userId], references: [id], name: "UserBookings")
+  seats       Seat[]     @relation("BookedSeats")
+  passengers  Passenger[]
+  bookedSeats BookedSeats[]
+
+  @@map("bookings")
 }
 
 
 
+model BookedSeats {
+  id        Int      @id @default(autoincrement())
+  bookingId Int
+  seatId    Int
+  bookingDate DateTime // New field to store the booking date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  seat      Seat     @relation(fields: [seatId], references: [id])
+
+  @@unique([bookingId, seatId]) // Ensure no duplicate booking-seat combinations
+  @@map("BookedSeats")
+}
+
+model Passenger {
+  id          Int      @id @default(autoincrement())
+  bookingId   Int
+  name        String
+  gender      String   // e.g., male, female, other
+  age         Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+
+  @@map("passengers")
+}
