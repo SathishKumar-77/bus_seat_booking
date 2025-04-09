@@ -1,0 +1,33 @@
+.billing-container {
+    padding: 20px;
+    max-width: 1400px;
+  }
+  
+  .summary-card, .payment-card {
+    border: 1.spinnerpx solid #ddd;
+    border-radius: 5px;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .summary-card h4, .payment-card h4 {
+    margin-bottom: 15px;
+  }
+  
+  .selected-seats {
+    margin-bottom: 15px;
+  }
+  
+  .card-details {
+    padding-left: 20px;
+  }
+  
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }

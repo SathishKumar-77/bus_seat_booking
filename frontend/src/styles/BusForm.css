@@ -1,0 +1,214 @@
+/* Seat Selection Styles */
+.seat-booking-container {
+  max-width: 1000px;
+  padding: 20px;
+  margin: 0 auto;
+}
+
+/* Deck Tabs */
+.deck-tabs .nav-link {
+  font-weight: 600;
+  color: #495057;
+  padding: 10px 20px;
+}
+
+.deck-tabs .nav-link.active {
+  color: #0d6efd;
+  background-color: transparent;
+  border-bottom: 3px solid #0d6efd;
+}
+
+/* Deck Container */
+.deck-container {
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+/* Bus Front/Rear */
+.bus-front, .bus-rear {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.driver-area, .exit-door {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.driver-area {
+  background-color: #343a40;
+  color: white;
+}
+
+.exit-door {
+  background-color: #dc3545;
+  color: white;
+}
+
+.driver-icon, .exit-icon {
+  margin-right: 8px;
+}
+
+/* Seat Grid */
+.seat-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.seat-row {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+/* Seat Styles */
+.seat {
+  position: relative;
+  width: 70px;
+  height: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.seat.available {
+  background-color: #e9ecef;
+}
+
+.seat.available:hover {
+  background-color: #dee2e6;
+  transform: translateY(-3px);
+}
+
+.seat.booked {
+  background-color: #f1f1f1;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.seat.selected {
+  background-color: #d1e7dd;
+  border: 2px solid #198754;
+}
+
+.seat.sleeper {
+  background-color: #e7f1ff;
+}
+
+/* Aisle Space */
+.aisle {
+  width: 30px;
+}
+
+/* Seat Icons */
+.seat-icon {
+  font-size: 24px;
+}
+
+.seat-icon.available {
+  color: #0d6efd;
+}
+
+.seat-icon.selected {
+  color: #198754;
+}
+
+.seat-icon.booked {
+  color: #dc3545;
+}
+
+.selected-check {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  color: #198754;
+  font-size: 14px;
+}
+
+/* Seat Labels */
+.seat-number {
+  font-size: 11px;
+  font-weight: bold;
+  position: absolute;
+  top: 3px;
+}
+
+.seat-price {
+  font-size: 10px;
+  position: absolute;
+  bottom: 3px;
+}
+
+/* Selection Summary */
+.selection-summary {
+  background-color: #f8f9fa;
+  border-radius: 10px;
+}
+
+.seat-badge {
+  font-size: 1em;
+  padding: 8px 12px;
+}
+
+.total-price {
+  border-top: 1px solid #dee2e6;
+  padding-top: 10px;
+  margin-top: 15px;
+}
+
+/* Passenger Form */
+.passenger-form-container {
+  background-color: #f8f9fa;
+  border-radius: 10px;
+}
+
+.passenger-card {
+  background-color: white;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .seat {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .seat-icon {
+    font-size: 20px;
+  }
+  
+  .seat-row {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 576px) {
+  .seat {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .seat-icon {
+    font-size: 16px;
+  }
+  
+  .seat-number, .seat-price {
+    font-size: 9px;
+  }
+  
+  .deck-tabs .nav-link {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+}

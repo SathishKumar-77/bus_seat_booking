@@ -1,0 +1,40 @@
+.operator-bookings-container {
+  padding: 20px;
+  max-width: 1400px;
+}
+
+.operator-bookings-container .table {
+  background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.operator-bookings-container .table th {
+  background-color: #28a745; /* Green for operator theme */
+  color: white;
+}
+
+.operator-bookings-container .table td {
+  vertical-align: middle;
+}
+
+.operator-bookings-container .badge {
+  margin-right: 5px;
+}
+
+.operator-bookings-container .form-group {
+  margin-bottom: 1rem;
+}
+
+.operator-bookings-container .pagination {
+  justify-content: center;
+}
+
+.operator-bookings-container .pagination .page-item.active .page-link {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.operator-bookings-container .pagination .page-link {
+  color: #28a745;
+}
