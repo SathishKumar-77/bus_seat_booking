@@ -1,52 +1,178 @@
+.seat-booking-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.deck-container {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.bus-front, .bus-rear {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.driver-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.driver-icon {
+  font-size: 24px;
+  color: #333;
+}
+
+.exit-door {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.exit-icon {
+  font-size: 24px;
+  color: #dc3545;
+}
+
 .seat-grid {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.seat-row.dual-row {
+.seat-row {
   display: flex;
+  margin-bottom: 15px;
   justify-content: center;
   width: 100%;
-  margin-bottom: 10px;
-}
-
-.left-row, .right-row {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.left-row {
-  margin-right: 20px;
-}
-
-.aisle {
-  width: 40px; /* Adjust aisle width as needed */
-  height: 100%;
 }
 
 .seat {
+  width: 70px;
+  height: 70px;
+  margin: 0 5px;
+  position: relative;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 80px;
-  height: 100px;
-  margin: 5px;
+  justify-content: center;
+  border-radius: 5px;
+  transition: all 0.2s;
+}
+
+.seat.standard {
+  background-color: #e9ecef;
+}
+
+.seat.sleeper {
+  background-color: #d1e7dd;
+}
+
+.seat.available:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.seat.selected {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.seat.booked {
+  background-color: #dc3545;
+  color: white;
+  cursor: not-allowed;
 }
 
 .seat-icon {
-  font-size: 24px;
+  font-size: 20px;
+  margin-bottom: 5px;
 }
 
-.seat-number, .seat-price {
+.seat-number {
   font-size: 12px;
+  font-weight: bold;
+}
+
+.seat-price {
+  font-size: 10px;
 }
 
 .selected-check {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  color: green;
+  top: -5px;
+  right: -5px;
+  color: white;
+  background-color: #198754;
+  border-radius: 50%;
+  padding: 3px;
+  font-size: 12px;
+}
+
+.empty-space {
+  width: 70px;
+  height: 70px;
+  margin: 0 5px;
+}
+
+.aisle {
+  width: 100px;
+  height: 70px;
+  margin: 0 10px;
+  border-left: 2px dashed #ccc;
+  border-right: 2px dashed #ccc;
+}
+
+.selection-summary {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.seat-badge {
+  font-size: 14px;
+  padding: 8px;
+  margin: 3px;
+}
+
+.passenger-form-container {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.passenger-card {
+  background-color: white;
+}
+
+.deck-tabs .nav-link {
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .seat {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .seat-number, .seat-price {
+    font-size: 10px;
+  }
+  
+  .empty-space {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .aisle {
+    width: 70px;
+    height: 50px;
+  }
 }

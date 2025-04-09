@@ -42,16 +42,17 @@ const SeatSelection = ({ busId, navigate }) => {
     const upperSeats = bus.seats.filter(seat => seat.position === 'upper');
     const lowerSeats = bus.seats.filter(seat => seat.position === 'lower');
 
-    // Function to organize seats into proper bus layout with two rows
+    // Function to organize seats into proper bus layout
     const organizeSeats = (seats, isSleeper = false) => {
       const rows = [];
       const seatsByRow = {};
-
+      
       // Group seats by row number
       seats.forEach(seat => {
+        // Extract row number from seat number (e.g., "1A" -> 1, "U2B" -> 2)
         const rowNum = parseInt(seat.seatNumber.replace(/\D/g, ''));
         if (!seatsByRow[rowNum]) seatsByRow[rowNum] = { left: [], right: [] };
-
+        
         const seatData = {
           id: seat.id,
           number: seat.seatNumber,
@@ -72,25 +73,31 @@ const SeatSelection = ({ busId, navigate }) => {
       // Sort rows numerically
       const rowNumbers = Object.keys(seatsByRow).map(Number).sort((a, b) => a - b);
 
-      // Create two-row layout with left and right sides
+      // Create proper bus layout with left and right sides
       rowNumbers.forEach(rowNum => {
         const rowSeats = [];
         const { left, right } = seatsByRow[rowNum];
 
         // Sort left seats (A, B)
         left.sort((a, b) => a.number.localeCompare(b.number));
-
+        
         // Sort right seats (C, D)
         right.sort((a, b) => a.number.localeCompare(b.number));
 
-        // Add left seats to the first row
-        left.forEach(seat => rowSeats.push(seat));
-
+        // Add left seats (max 2 per row)
+        left.slice(0, 2).forEach(seat => rowSeats.push(seat));
+        
+        // Add empty space if needed
+        while (rowSeats.length < 2) rowSeats.push(null);
+        
         // Add aisle (empty space)
         rowSeats.push(null);
-
-        // Add right seats to the second row
-        right.forEach(seat => rowSeats.push(seat));
+        
+        // Add right seats (max 2 per row)
+        right.slice(0, 2).forEach(seat => rowSeats.push(seat));
+        
+        // Add empty space if needed
+        while (rowSeats.length < 5) rowSeats.push(null);
 
         rows.push(rowSeats);
       });
@@ -207,9 +214,9 @@ const SeatSelection = ({ busId, navigate }) => {
         
         <div className="seat-grid">
           {seatLayout[deck].map((row, rowIndex) => (
-            <div key={rowIndex} className="seat-row dual-row">
-              <div class left-row>
-                {row.filter(seat => seat && seat.position === 'left').map((seat, idx) => (
+            <div key={rowIndex} className="seat-row">
+              {row.map((seat, colIndex) => (
+                seat ? (
                   <div
                     key={seat.id}
                     className={`seat ${seat.type} ${seat.status} ${isSeatSelected(seat.id) ? 'selected' : ''}`}
@@ -220,23 +227,12 @@ const SeatSelection = ({ busId, navigate }) => {
                     <div className="seat-price">৳{seat.price}</div>
                     {isSeatSelected(seat.id) && <FaCheck className="selected-check" />}
                   </div>
-                ))}
-              </div>
-              <div className="aisle"></div>
-              <div className="right-row">
-                {row.filter(seat => seat && seat.position === 'right').map((seat, idx) => (
-                  <div
-                    key={seat.id}
-                    className={`seat ${seat.type} ${seat.status} ${isSeatSelected(seat.id) ? 'selected' : ''}`}
-                    onClick={() => handleSeatClick(seat)}
-                  >
-                    {renderSeatIcon(seat)}
-                    <div className="seat-number">{seat.number}</div>
-                    <div className="seat-price">৳{seat.price}</div>
-                    {isSeatSelected(seat.id) && <FaCheck className="selected-check" />}
-                  </div>
-                ))}
-              </div>
+                ) : colIndex === 2 ? (
+                  <div key={`aisle-${rowIndex}`} className="aisle"></div>
+                ) : (
+                  <div key={`empty-${rowIndex}-${colIndex}`} className="empty-space"></div>
+                )
+              ))}
             </div>
           ))}
         </div>
