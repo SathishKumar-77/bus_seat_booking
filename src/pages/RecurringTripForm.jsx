@@ -19,7 +19,7 @@ const RecurringTripForm = () => {
   useEffect(() => {
     const fetchBuses = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/buses');
+        const res = await axios.get('http://localhost:5000/api/buses');
         setBuses(res.data.buses || []);
       } catch (err) {
         console.error('Error fetching buses', err);

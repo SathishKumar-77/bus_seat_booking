@@ -241,30 +241,33 @@ app.post('/bus', async (req, res) => {
       return res.status(400).json({ message: 'Bus with this number plate already exists' });
     }
 
-    // Create bus
+    // Create the bus with default prices set to 0.0 if missing
     const bus = await prisma.bus.create({
       data: {
         name,
         numberPlate,
         routeFrom,
         routeTo,
-        operatorId,
+        operator: {
+          connect: { id: operatorId },
+        },
         type,
         acType,
-        priceSeater: parseFloat(priceSeater),
-        priceSleeper: parseFloat(priceSleeper),
+        priceSeater: priceSeater ? parseFloat(priceSeater) : 0.0,
+        priceSleeper: priceSleeper ? parseFloat(priceSleeper) : 0.0,
         seatCount,
       },
     });
 
     console.log("Buses", bus);
-
     res.status(201).json(bus);
   } catch (error) {
     console.error('Error creating bus:', error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+
 
 
 
