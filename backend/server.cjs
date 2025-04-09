@@ -9,7 +9,13 @@ const crypto = require('crypto')
 const { protect } = require('./middleware/auth')
 
 
-import cors from 'cors'; // or const cors = require('cors');
+
+
+
+
+
+const app = express()
+const prisma = new PrismaClient()
 
 const allowedOrigins = ['http://localhost:5173', 'https://bus-seat-booking-ebon.vercel.app'];
 
@@ -19,13 +25,7 @@ app.use(cors({
   credentials: true, // if using cookies/auth
 }));
 
-
-
-const app = express()
-const prisma = new PrismaClient()
-
 // Middleware
-app.use(cors())
 app.use(bodyParser.json())
 
 // Test DB connection
