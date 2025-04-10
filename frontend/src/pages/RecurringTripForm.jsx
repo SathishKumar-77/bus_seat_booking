@@ -37,7 +37,8 @@ const RecurringTripForm = () => {
   // Fetch Buses
   const fetchBuses = async (operatorId) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/buses?operatorId=${operatorId}`);
+      const apiGetBusesByOperatorId = `${import.meta.env.VITE_API_URL}/api/buses?operatorId=${operatorId}`
+      const res = await axios.get(apiGetBusesByOperatorId);
       return res.data.buses || [];
     } catch (err) {
       console.error('Error fetching buses:', err);
@@ -50,7 +51,9 @@ const RecurringTripForm = () => {
   const fetchTrips = async (operatorId) => {
     setIsLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/recurring-trips?operatorId=${operatorId}`);
+      const apiGetTripByOperatorId = `${import.meta.env.VITE_API_URL}/recurring-trips?operatorId=${operatorId}`
+
+      const res = await axios.get(apiGetTripByOperatorId);
       setTrips(res.data.trips || []);
     } catch (err) {
       console.error('Failed to fetch trips', err);
@@ -99,10 +102,13 @@ const RecurringTripForm = () => {
     setIsLoading(true);
     try {
       if (editMode) {
-        await axios.put(`http://localhost:5000/recurring-trips/${editId}`, form);
+        const apiPutTrip = `${import.meta.env.VITE_API_URL}/recurring-trips/${editId}`
+        await axios.put(apiPutTrip, form);
         toast.success('Recurring trip updated!');
       } else {
-        const response = await axios.post('http://localhost:5000/recurring-trips', form);
+        const apiPostTrip = `${import.meta.env.VITE_API_URL}/recurring-trips`
+
+        const response = await axios.post(apiPostTrip, form);
         toast.success(response.data.message || 'Recurring trip created!');
       }
       setForm({ busId: '', operatorId, daysOfWeek: [], departureTime: '', arrivalTime: '' });
@@ -135,7 +141,8 @@ const RecurringTripForm = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this trip?')) return;
     try {
-      await axios.delete(`http://localhost:5000/recurring-trips/${id}`);
+      const apiDeleteTrip = `${import.meta.env.VITE_API_URL}/recurring-trips/${id}`
+      await axios.delete(apiDeleteTrip);
       toast.success('Trip deleted successfully!');
       fetchTrips(operatorId);
     } catch (err) {

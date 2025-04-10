@@ -20,6 +20,9 @@ const SeatSelection = () => {
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState(searchParams.get('date') || new Date().toISOString().split('T')[0]);
 
+  const apiGet = `${import.meta.env.VITE_API_URL}/api/bus/${busId}?date=${selectedDate}`
+  const apiPostBookings = `${import.meta.env.VITE_API_URL}/api/bookings`
+
   useEffect(() => {
     const fetchBusData = async () => {
       try {
@@ -28,7 +31,7 @@ const SeatSelection = () => {
           setLoading(false);
           return;
         }
-        const response = await fetch(`http://localhost:5000/api/bus/${busId}?date=${selectedDate}`);
+        const response = await fetch(apiGet);
         if (!response.ok) {
           throw new Error('Failed to fetch bus data');
         }
@@ -174,7 +177,7 @@ const SeatSelection = () => {
         userId: user ? user.id : null
       };
 
-      const response = await fetch('http://localhost:5000/api/bookings', {
+      const response = await fetch(apiPostBookings, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookingData)

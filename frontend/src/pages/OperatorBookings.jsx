@@ -19,6 +19,8 @@ const OperatorBookings = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // 10 rows per page
 
+  const apiGetBookingByOperator = `${import.meta.env.VITE_API_URL}/api/bookings/operator/${user.id}`
+
   useEffect(() => {
     if (!user || user.role !== 'BUS_OPERATOR') {
       navigate('/'); // Redirect to home if not an operator or not logged in
@@ -27,7 +29,7 @@ const OperatorBookings = () => {
 
     const fetchOperatorBookings = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/bookings/operator/${user.id}`);
+        const response = await fetch(apiGetBookingByOperator);
         if (!response.ok) throw new Error('Failed to fetch operator bookings');
         const data = await response.json();
         setBookings(data);

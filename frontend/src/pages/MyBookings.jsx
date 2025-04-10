@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import QRCode from 'qrcode';
 import '../styles/MyBookings.css';
+import { constants } from 'crypto';
 
 const MyBookings = () => {
   const { user } = useAuth();
@@ -15,6 +16,9 @@ const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const apiGetBookings = `${import.meta.env.VITE_API_URL}/api/bookings/user/${user.id}`
+  const apiGetBookingsById = `${import.meta.env.VITE_API_URL}/api/bookings/user/${user.id}`
 
   useEffect(() => {
     if (!user) {
@@ -24,7 +28,7 @@ const MyBookings = () => {
 
     const fetchBookings = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/bookings/user/${user.id}`);
+        const response = await fetch(apiGetBookings);
         if (!response.ok) throw new Error('Failed to fetch bookings');
         const data = await response.json();
         setBookings(data);
@@ -47,7 +51,7 @@ const MyBookings = () => {
         if (!response.ok) throw new Error('Failed to cancel booking');
         await response.json(); // Consume the response to avoid unread body error
         const fetchBookings = async () => {
-          const response = await fetch(`http://localhost:5000/api/bookings/user/${user.id}`);
+          const response = await fetch(apiGetBookingsById);
           if (!response.ok) throw new Error('Failed to refresh bookings');
           const data = await response.json();
           setBookings(data);

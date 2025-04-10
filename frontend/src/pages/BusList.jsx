@@ -26,12 +26,14 @@ const BusList = () => {
   const to = searchParams.get('to');
   const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
+  const apiGetAllBuses = `${import.meta.env.VITE_API_URL}/api/bus?from=${from}&to=${to}&date=${date}`
+
   useEffect(() => {
     if (from && to) {
       setIsLoading(true);
       setError(null);
       
-      axios.get(`http://localhost:5000/api/bus?from=${from}&to=${to}&date=${date}`)
+      axios.get(apiGetAllBuses)
         .then(res => {
           const allBuses = Array.isArray(res.data) ? res.data : [];
           setBuses(allBuses); // Backend filters non-operating buses

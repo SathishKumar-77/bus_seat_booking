@@ -14,6 +14,10 @@ const Billing = () => {
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [bookingId, setBookingId] = useState(null);
 
+  const apiUrl = `${import.meta.env.VITE_API_URL}/api/bookings`
+  const apiUrlDelete = `${import.meta.env.VITE_API_URL}/api/bookings/${bookingId}`
+
+
   useEffect(() => {
     if (!state) {
       navigate('/seat-selection');
@@ -44,7 +48,7 @@ const Billing = () => {
     console.log('Sending booking data:', bookingData); // Debug log
 
     try {
-      const response = await fetch('http://localhost:5000/api/bookings', {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookingData)
@@ -92,7 +96,7 @@ const Billing = () => {
       } else {
         setPaymentStatus({ type: 'danger', message: 'Payment failed. Please try again.' });
         // Optionally cancel booking on failure
-        await fetch(`http://localhost:5000/api/bookings/${bookingId}`, { method: 'DELETE' });
+        await fetch(apiUrlDelete, { method: 'DELETE' });
       }
     } catch (error) {
       setPaymentStatus({ type: 'danger', message: `Payment error: ${error.message}` });

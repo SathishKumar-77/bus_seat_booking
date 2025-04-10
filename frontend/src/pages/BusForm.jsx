@@ -18,6 +18,13 @@ const seatConfigs = {
   '14_sleeper_upper_14_sleeper_lower': { upper: 14, lower: 14, sleeper: 28 },
 };
 
+
+const apiGetBusById = `${import.meta.env.VITE_API_URL}/api/buses?operatorId=${operatorId}`
+const apiPutBus = `${import.meta.env.VITE_API_URL}/bus/${editingBus}`
+const apiGetBuses =  `${import.meta.env.VITE_API_URL}/bus`
+const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
+const apiDeleteBuses = `${import.meta.env.VITE_API_URL}/bus/${id}`
+
 const BusForm = () => {
   const [form, setForm] = useState({
     name: '',
@@ -58,7 +65,7 @@ const BusForm = () => {
     if (!operatorId) return;
     setIsLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/buses?operatorId=${operatorId}`);
+      const res = await axios.get(apiGetBusById);
       setBuses(res.data.buses || []);
       console.log("Buses", res.data.buses);
     } catch (err) {
@@ -84,13 +91,13 @@ const BusForm = () => {
 
     try {
       if (editingBus) {
-        await axios.put(`http://localhost:5000/bus/${editingBus}`, {
+        await axios.put(apiPutBus, {
           ...form,
           seatCount: totalSeats,
         });
         toast.success('Bus updated successfully!');
       } else {
-        const busRes = await axios.post('http://localhost:5000/bus', {
+        const busRes = await axios.post(apiGetBuses, {
           ...form,
           seatCount: totalSeats,
         });
@@ -101,7 +108,7 @@ const BusForm = () => {
           lowerType: form.type.includes('sleeper') ? 'sleeper' : 'seater',
         };
 
-        await axios.post('http://localhost:5000/seats', {
+        await axios.post(apiGetSeats, {
           busId: busRes.data.id,
           config: configWithTypes,
           priceSeater: form.priceSeater,
@@ -160,7 +167,7 @@ const BusForm = () => {
     if (!window.confirm('Are you sure you want to delete this bus?')) return;
   
     try {
-      await axios.delete(`http://localhost:5000/bus/${id}`);
+      await axios.delete(apiDeleteBuses);
       toast.success('Bus deleted successfully!');
       fetchBuses();
     } catch (err) {
