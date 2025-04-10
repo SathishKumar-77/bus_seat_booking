@@ -21,16 +21,19 @@ const allowedOrigins = ['http://localhost:5173', 'https://bus-seat-booking-ebon.
 
 // CORS setup
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
     } else {
-      return callback(new Error('Not allowed by CORS'));
+      callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+app.options('*', cors());
 
 // ✅ Add this line
 app.options('*', cors());
@@ -38,6 +41,12 @@ app.options('*', cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
+
+
+app.use((err, req, res, next) => {
+  console.error("Middleware error:", err.message);
+  res.status(500).send("Server error");
+});
 
 // Test DB connection
 prisma.$connect()
