@@ -19,9 +19,9 @@ const prisma = new PrismaClient()
 
 const allowedOrigins = ['http://localhost:5173', 'https://bus-seat-booking-ebon.vercel.app'];
 
-// CORS setup
 app.use(cors({
   origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -29,15 +29,12 @@ app.use(cors({
       return callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
 }));
 
-// ✅ Add this line
-app.options('*', cors());
 
-app.use(express.json());
-app.use(bodyParser.json());
-
+// Middleware
+app.use(bodyParser.json())
 
 // Test DB connection
 prisma.$connect()
@@ -1397,6 +1394,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 // Handle shutdown
 process.on('SIGINT', async () => {
   await prisma.$disconnect()
