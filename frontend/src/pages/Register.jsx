@@ -20,7 +20,7 @@ const Register = () => {
   const [isHovered, setIsHovered] = useState(false)
   const navigate = useNavigate()
 
-  const apiUrl = `https://${import.meta.env.VITE_API_URL}/api/auth/register`
+  const apiUrl = `${import.meta.env.VITE_API_URL}/api/auth/register`
 
   const handleChange = (e) => {
     const { name, value } = e.target
