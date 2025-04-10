@@ -11,9 +11,10 @@ const AdminDashboard = () => {
   const token = localStorage.getItem('token') // or from context
 
 
+  const apiUrl = `${import.meta.env.VITE_API_URL}/api/admin/generate-key`
   const generateKey = async () => {
     try {
-        const response = await fetch('${import.meta.env.VITE_API_URL}/api/admin/generate-key', {
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
