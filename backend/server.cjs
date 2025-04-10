@@ -21,16 +21,17 @@ const allowedOrigins = ['http://localhost:5173', 'https://bus-seat-booking-ebon.
 
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // Allow non-browser tools like Postman
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
       return callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true,
+  credentials: true
 }));
+
+app.use(express.json());
 
 
 // Middleware
