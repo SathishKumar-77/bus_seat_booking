@@ -19,11 +19,19 @@ const prisma = new PrismaClient()
 
 const allowedOrigins = ['http://localhost:5173', 'https://bus-seat-booking-ebon.vercel.app'];
 
-
 app.use(cors({
-  origin: allowedOrigins, // ✅ Allow your frontend during development
-  credentials: true, // if using cookies/auth
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
 }));
+
 
 // Middleware
 app.use(bodyParser.json())
