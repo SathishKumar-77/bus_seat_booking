@@ -19,9 +19,10 @@ const prisma = new PrismaClient()
 
 const allowedOrigins = ['http://localhost:5173', 'https://bus-seat-booking-ebon.vercel.app'];
 
+// CORS setup
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // Allow non-browser tools like Postman
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
@@ -31,11 +32,12 @@ app.use(cors({
   credentials: true
 }));
 
+// ✅ Add this line
+app.options('*', cors());
+
 app.use(express.json());
+app.use(bodyParser.json());
 
-
-// Middleware
-app.use(bodyParser.json())
 
 // Test DB connection
 prisma.$connect()
