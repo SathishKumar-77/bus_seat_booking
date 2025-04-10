@@ -8,7 +8,6 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import QRCode from 'qrcode';
 import '../styles/MyBookings.css';
-import { constants } from 'crypto';
 
 const MyBookings = () => {
   const { user } = useAuth();
