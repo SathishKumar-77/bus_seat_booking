@@ -32,11 +32,11 @@ const Header = () => {
             )}
 
             {/* ADMIN specific link */}
-            {/* {user?.role === 'ADMIN' && (
+            {user?.role === 'ADMIN' && (
               <Nav.Link as={Link} to="/dashboard" className="admin-dashboard-link">
                 <FaChartLine className="icon me-1" /> Admin Dashboard
               </Nav.Link>
-            )} */}
+            )}
 
             {/* BUS_OPERATOR specific link */}
             {user?.role === 'BUS_OPERATOR' && (
