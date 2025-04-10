@@ -1390,6 +1390,9 @@ app.get('/api/bookings/operator/:operatorId', async (req, res) => {
 // })
 
 
+app.get('/test', (req, res) => res.send('Server is up!'));
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
