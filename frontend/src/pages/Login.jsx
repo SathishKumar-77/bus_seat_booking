@@ -21,7 +21,9 @@ const Login = () => {
 
   const apiUrl = `${import.meta.env.VITE_API_URL}/api/auth/login`
 
-  console.log("ULR", apiUrl);
+  const localUrl = `http://localhost:5000/api/auth/login`
+
+
 
   useEffect(() => {
     if (location.state?.registrationSuccess) {

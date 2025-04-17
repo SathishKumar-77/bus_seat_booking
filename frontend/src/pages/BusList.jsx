@@ -27,6 +27,7 @@ const BusList = () => {
   const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
   const apiGetAllBuses = `${import.meta.env.VITE_API_URL}/api/bus?from=${from}&to=${to}&date=${date}`
+  const localUrl = `http://localhost:5000/api/bus?from=${from}&to=${to}&date=${date}`
 
   useEffect(() => {
     if (from && to) {

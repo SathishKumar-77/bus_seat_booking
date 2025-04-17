@@ -23,6 +23,8 @@ const SeatSelection = () => {
   const apiGet = `${import.meta.env.VITE_API_URL}/api/bus/${busId}?date=${selectedDate}`
   const apiPostBookings = `${import.meta.env.VITE_API_URL}/api/bookings`
 
+  const locatapiGet = `http://localhost:5000/api/bus/${busId}?date=${selectedDate}`
+
   useEffect(() => {
     const fetchBusData = async () => {
       try {
@@ -50,74 +52,201 @@ const SeatSelection = () => {
     fetchBusData();
   }, [busId, selectedDate]);
 
+  // const generateSeatLayout = (bus) => {
+  //   if (!bus || !bus.seats) {
+  //     return { upper: [], lower: [] }; // Return empty if no seats
+  //   }
+
+  //   const upperSeats = bus.seats.filter(seat => seat.position === 'upper');
+  //   const lowerSeats = bus.seats.filter(seat => seat.position === 'lower');
+
+  //   const organizeSeats = (seats, isSleeper = false) => {
+  //     const rows = [];
+  //     const seatsByRow = {};
+
+  //     seats.forEach(seat => {
+  //       const rowNum = parseInt(seat.seatNumber.match(/\d+/)[0]) || 1; // Default to 1 if no number
+  //       if (!seatsByRow[rowNum]) seatsByRow[rowNum] = { left: [], right: [] };
+
+  //       let position = 'right';
+  //       if (seat.seatNumber.match(/[12]$/) || seat.seatNumber.endsWith('L')) {
+  //         position = 'left';
+  //       } else if (seat.seatNumber.match(/[34]$/) || seat.seatNumber.endsWith('R1') || seat.seatNumber.endsWith('R2')) {
+  //         position = 'right';
+  //       }
+
+  //       const seatData = {
+  //         id: seat.id,
+  //         number: seat.seatNumber,
+  //         type: seat.type || (isSleeper ? 'sleeper' : 'standard'),
+  //         status: seat.status || 'available',
+  //         price: seat.price || (isSleeper ? 800 : 500),
+  //         deck: seat.position,
+  //         position: position
+  //       };
+
+  //       seatsByRow[rowNum][position].push(seatData);
+  //     });
+
+  //     const sortedRows = Object.keys(seatsByRow).sort((a, b) => a - b);
+      
+  //     sortedRows.forEach(rowNum => {
+  //       const row = seatsByRow[rowNum];
+  //       if (isSleeper) {
+  //         if (rowNum <= 4) {
+  //           row.left = row.left.slice(0, 1); // 1 left seat for rows 1-4
+  //           row.right = row.right.slice(0, 2); // 2 right seats
+  //         } else if (rowNum <= 5) {
+  //           row.left = []; // No left seat for row 5
+  //           row.right = row.right.slice(0, 2); // 2 right seats
+  //         }
+  //       } else {
+  //         row.left = row.left.slice(0, 2); // 2 left seats per row
+  //         row.right = row.right.slice(0, 2); // 2 right seats per row
+  //       }
+  //       rows.push({
+  //         rowNumber: rowNum,
+  //         left: row.left,
+  //         right: row.right
+  //       });
+  //     });
+
+  //     console.log('Seat Layout:', rows);
+  //     return rows;
+  //   };
+
+  //   return {
+  //     upper: upperSeats.length > 0 ? organizeSeats(upperSeats, bus.type.includes('Sleeper')) : [],
+  //     lower: lowerSeats.length > 0 ? organizeSeats(lowerSeats, bus.type.includes('Sleeper')) : []
+  //   };
+  // };
+
+
   const generateSeatLayout = (bus) => {
     if (!bus || !bus.seats) {
-      return { upper: [], lower: [] }; // Return empty if no seats
+      return { upper: [], lower: [] };
     }
-
+  
     const upperSeats = bus.seats.filter(seat => seat.position === 'upper');
     const lowerSeats = bus.seats.filter(seat => seat.position === 'lower');
-
-    const organizeSeats = (seats, isSleeper = false) => {
+  
+    const organizeSeats = (seats) => {
+      if (seats.length === 0) return [];
+  
+      // Determine if deck is sleeper or seater based on first seat's type
+      const isSleeper = seats[0].type === 'sleeper';
+  
+      // Sort seats by seatNumber to ensure consistent ordering
+      const sortedSeats = [...seats].sort((a, b) => {
+        const numA = parseInt(a.seatNumber.match(/\d+/)[0]);
+        const numB = parseInt(b.seatNumber.match(/\d+/)[0]);
+        return numA - numB;
+      });
+  
       const rows = [];
-      const seatsByRow = {};
-
-      seats.forEach(seat => {
-        const rowNum = parseInt(seat.seatNumber.match(/\d+/)[0]) || 1; // Default to 1 if no number
-        if (!seatsByRow[rowNum]) seatsByRow[rowNum] = { left: [], right: [] };
-
-        let position = 'right';
-        if (seat.seatNumber.match(/[12]$/) || seat.seatNumber.endsWith('L')) {
-          position = 'left';
-        } else if (seat.seatNumber.match(/[34]$/) || seat.seatNumber.endsWith('R1') || seat.seatNumber.endsWith('R2')) {
-          position = 'right';
+  
+      if (!isSleeper) {
+        // Seater: 7 rows, 4 seats per row (2 left + 2 right)
+        const numRows = 7;
+        const seatsPerRow = 4;
+        let seatIndex = 0;
+  
+        for (let rowNum = 1; rowNum <= numRows; rowNum++) {
+          // Get the next 4 seats for this row
+          const rowSeats = sortedSeats.slice(seatIndex, seatIndex + seatsPerRow);
+          const left = [];
+          const right = [];
+  
+          // Assign seats to left and right based on index (first 2 left, next 2 right)
+          rowSeats.forEach((seat, idx) => {
+            const seatData = {
+              id: seat.id,
+              number: seat.seatNumber,
+              type: seat.type,
+              status: seat.status,
+              price: seat.price,
+              deck: seat.position,
+              position: idx < 2 ? 'left' : 'right'
+            };
+            if (idx < 2) {
+              left.push(seatData);
+            } else {
+              right.push(seatData);
+            }
+          });
+  
+          // Ensure seats within left and right are sorted by seatNumber
+          rows.push({
+            rowNumber: rowNum,
+            left: left.sort((a, b) => parseInt(a.number.match(/\d+/)[0]) - parseInt(b.number.match(/\d+/)[0])),
+            right: right.sort((a, b) => parseInt(a.number.match(/\d+/)[0]) - parseInt(b.number.match(/\d+/)[0]))
+          });
+  
+          seatIndex += seatsPerRow;
         }
-
-        const seatData = {
-          id: seat.id,
-          number: seat.seatNumber,
-          type: seat.type || (isSleeper ? 'sleeper' : 'standard'),
-          status: seat.status || 'available',
-          price: seat.price || (isSleeper ? 800 : 500),
-          deck: seat.position,
-          position: position
-        };
-
-        seatsByRow[rowNum][position].push(seatData);
-      });
-
-      const sortedRows = Object.keys(seatsByRow).sort((a, b) => a - b);
-      
-      sortedRows.forEach(rowNum => {
-        const row = seatsByRow[rowNum];
-        if (isSleeper) {
+      } else {
+        // Sleeper: 5 rows with specific layout
+        let seatIndex = 0;
+        for (let rowNum = 1; rowNum <= 5; rowNum++) {
+          const row = { rowNumber: rowNum, left: [], right: [] };
           if (rowNum <= 4) {
-            row.left = row.left.slice(0, 1); // 1 left seat for rows 1-4
-            row.right = row.right.slice(0, 2); // 2 right seats
-          } else if (rowNum <= 5) {
-            row.left = []; // No left seat for row 5
-            row.right = row.right.slice(0, 2); // 2 right seats
+            // Rows 1-4: 1 left, 2 right
+            if (seatIndex < sortedSeats.length) {
+              row.left.push({
+                id: sortedSeats[seatIndex].id,
+                number: sortedSeats[seatIndex].seatNumber,
+                type: sortedSeats[seatIndex].type,
+                status: sortedSeats[seatIndex].status,
+                price: sortedSeats[seatIndex].price,
+                deck: sortedSeats[seatIndex].position,
+                position: 'left'
+              });
+              seatIndex++;
+            }
+            for (let j = 0; j < 2; j++) {
+              if (seatIndex < sortedSeats.length) {
+                row.right.push({
+                  id: sortedSeats[seatIndex].id,
+                  number: sortedSeats[seatIndex].seatNumber,
+                  type: sortedSeats[seatIndex].type,
+                  status: sortedSeats[seatIndex].status,
+                  price: sortedSeats[seatIndex].price,
+                  deck: sortedSeats[seatIndex].position,
+                  position: 'right'
+                });
+                seatIndex++;
+              }
+            }
+          } else if (rowNum === 5) {
+            // Row 5: 0 left, 2 right
+            for (let j = 0; j < 2; j++) {
+              if (seatIndex < sortedSeats.length) {
+                row.right.push({
+                  id: sortedSeats[seatIndex].id,
+                  number: sortedSeats[seatIndex].seatNumber,
+                  type: sortedSeats[seatIndex].type,
+                  status: sortedSeats[seatIndex].status,
+                  price: sortedSeats[seatIndex].price,
+                  deck: sortedSeats[seatIndex].position,
+                  position: 'right'
+                });
+                seatIndex++;
+              }
+            }
           }
-        } else {
-          row.left = row.left.slice(0, 2); // 2 left seats per row
-          row.right = row.right.slice(0, 2); // 2 right seats per row
+          rows.push(row);
         }
-        rows.push({
-          rowNumber: rowNum,
-          left: row.left,
-          right: row.right
-        });
-      });
-
-      console.log('Seat Layout:', rows);
+      }
+  
       return rows;
     };
-
+  
     return {
-      upper: upperSeats.length > 0 ? organizeSeats(upperSeats, bus.type.includes('Sleeper')) : [],
-      lower: lowerSeats.length > 0 ? organizeSeats(lowerSeats, bus.type.includes('Sleeper')) : []
+      upper: organizeSeats(upperSeats),
+      lower: organizeSeats(lowerSeats)
     };
   };
+
 
   const handleSeatClick = (seat) => {
     if (!seat || seat.status === 'booked') return;

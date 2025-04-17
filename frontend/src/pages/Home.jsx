@@ -84,7 +84,7 @@ const Home = () => {
                 <p className="lead text-white mb-4">
                   Book your bus tickets online in just a few clicks. Safe, secure and reliable service with 1000+ daily trips.
                 </p>
-                <div className="d-flex flex-wrap gap-3">
+                {/* <div className="d-flex flex-wrap gap-3">
                   <Button 
                     variant="primary" 
                     size="lg" 
@@ -99,7 +99,7 @@ const Home = () => {
                   >
                     Explore Routes <FaRoute className="ms-2" />
                   </Button>
-                </div>
+                </div> */}
               </motion.div>
             </Col>
             <Col lg={6} className="hero-image-col">
@@ -212,9 +212,9 @@ const Home = () => {
                           <strong>{route.duration}</strong>
                         </div>
                       </div>
-                      <Button variant="outline-primary" className="w-100 mt-3">
+                      {/* <Button variant="outline-primary" className="w-100 mt-3">
                         View Buses
-                      </Button>
+                      </Button> */}
                     </Card.Body>
                   </Card>
                 </motion.div>

@@ -38,6 +38,7 @@ const RecurringTripForm = () => {
   const fetchBuses = async (operatorId) => {
     try {
       const apiGetBusesByOperatorId = `${import.meta.env.VITE_API_URL}/api/buses?operatorId=${operatorId}`
+      const localapiGetBusesByOperatorId = `http://localhost:5000/api/buses?operatorId=${operatorId}`
       const res = await axios.get(apiGetBusesByOperatorId);
       return res.data.buses || [];
     } catch (err) {
@@ -52,6 +53,7 @@ const RecurringTripForm = () => {
     setIsLoading(true);
     try {
       const apiGetTripByOperatorId = `${import.meta.env.VITE_API_URL}/recurring-trips?operatorId=${operatorId}`
+      const localapiGetTripByOperatorId = `http://localhost:5000/recurring-trips?operatorId=${operatorId}`
 
       const res = await axios.get(apiGetTripByOperatorId);
       setTrips(res.data.trips || []);
@@ -107,6 +109,7 @@ const RecurringTripForm = () => {
         toast.success('Recurring trip updated!');
       } else {
         const apiPostTrip = `${import.meta.env.VITE_API_URL}/recurring-trips`
+        const localPostTrip = `http://localhost:5000/recurring-trips`
 
         const response = await axios.post(apiPostTrip, form);
         toast.success(response.data.message || 'Recurring trip created!');

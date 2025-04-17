@@ -40,6 +40,9 @@ const BusForm = () => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (storedUser?.role === 'BUS_OPERATOR') {
       setForm(prev => ({ ...prev, operatorId: storedUser.id }));
+    } else {
+      setError('User must be a bus operator to add buses.');
+      toast.error('User must be a bus operator to add buses.');
     }
   }, []);
   
@@ -50,17 +53,14 @@ const BusForm = () => {
     }
   }, [form.operatorId]);
 
-
-
   const operatorId = form.operatorId;
-
-
 
   const fetchBuses = async () => {
     if (!operatorId) return;
     setIsLoading(true);
     try {
-      const apiGetBusById = `${import.meta.env.VITE_API_URL}/api/buses?operatorId=${operatorId}`
+      const apiGetBusById = `${import.meta.env.VITE_API_URL}/api/buses?operatorId=${operatorId}`;
+      const localapiGetBusById = `http://localhost:5000/api/buses?operatorId=${operatorId}`;
 
       const res = await axios.get(apiGetBusById);
       setBuses(res.data.buses || []);
@@ -73,49 +73,105 @@ const BusForm = () => {
     }
   };
 
- 
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
+  // Validate form before submission
+  const validateForm = () => {
+    const { name, numberPlate, routeFrom, routeTo, operatorId, priceSeater, priceSleeper, type } = form;
+    const selectedType = seatConfigs[type];
+
+    if (!name || !numberPlate || !routeFrom || !routeTo) {
+      return 'All fields (Bus Name, Number Plate, From, To) are required.';
+    }
+    if (!operatorId) {
+      return 'Operator ID is missing. Please log in as a bus operator.';
+    }
+    if (selectedType.sleeper < selectedType.lower && (!priceSeater || isNaN(priceSeater) || parseFloat(priceSeater) <= 0)) {
+      return 'Seater price must be a positive number.';
+    }
+    if (selectedType.sleeper > 0 && (!priceSleeper || isNaN(priceSleeper) || parseFloat(priceSleeper) <= 0)) {
+      return 'Sleeper price must be a positive number.';
+    }
+    return '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      toast.error(validationError);
+      return;
+    }
+
     setIsLoading(true);
+    setError('');
     const seatConfig = seatConfigs[form.type];
     const totalSeats = seatConfig.upper + seatConfig.lower;
 
     try {
+      let busId;
       if (editingBus) {
-        const apiPutBus = `${import.meta.env.VITE_API_URL}/bus/${editingBus}`
-
+        const apiPutBus = `${import.meta.env.VITE_API_URL}/bus/${editingBus}`;
         await axios.put(apiPutBus, {
           ...form,
           seatCount: totalSeats,
+          priceSeater: parseFloat(form.priceSeater) || 0,
+          priceSleeper: parseFloat(form.priceSleeper) || 0,
         });
         toast.success('Bus updated successfully!');
+        busId = editingBus;
       } else {
-      const apiGetBuses =  `${import.meta.env.VITE_API_URL}/bus`
+        const apiPostBuses = `${import.meta.env.VITE_API_URL}/bus`;
+        const localapiPostBuses = `http://localhost:5000/bus`;
 
-        const busRes = await axios.post(apiGetBuses, {
+        const busRes = await axios.post(apiPostBuses, {
           ...form,
           seatCount: totalSeats,
+          priceSeater: parseFloat(form.priceSeater) || 0,
+          priceSleeper: parseFloat(form.priceSleeper) || 0,
         });
+        busId = busRes.data.id;
+
+        // Define onlar seat types based on bus type
+        let upperType, lowerType;
+        switch (form.type) {
+          case '28_seater_only':
+            upperType = 'seater';
+            lowerType = 'seater';
+            break;
+          case '14_sleeper_upper_28_seater_lower':
+            upperType = 'sleeper';
+            lowerType = 'seater';
+            break;
+          case '14_sleeper_upper_14_sleeper_lower':
+            upperType = 'sleeper';
+            lowerType = 'sleeper';
+            break;
+          default:
+            upperType = 'seater';
+            lowerType = 'seater';
+        }
 
         const configWithTypes = {
           ...seatConfig,
-          upperType: form.type.includes('sleeper') ? 'sleeper' : 'seater',
-          lowerType: form.type.includes('sleeper') ? 'sleeper' : 'seater',
+          upperType,
+          lowerType,
+          busType: form.type,
         };
 
-      
-const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
-        await axios.post(apiGetSeats, {
-          busId: busRes.data.id,
+        const apiPostSeats = `${import.meta.env.VITE_API_URL}/seats`;
+        const localPostSeats = `http://localhost:5000/seats`;
+        await axios.post(apiPostSeats, {
+          busId,
           config: configWithTypes,
-          priceSeater: form.priceSeater,
-          priceSleeper: form.priceSleeper,
+          priceSeater: parseFloat(form.priceSeater) || 0,
+          priceSleeper: parseFloat(form.priceSleeper) || 0,
         });
 
         toast.success('Bus and seats created successfully!');
@@ -124,10 +180,11 @@ const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
       resetForm();
       fetchBuses();
     } catch (err) {
-      console.error(err);
+      console.error('Error creating/updating bus:', err);
       const errorMsg = err.response?.data?.message?.includes('numberPlate') 
         ? 'Number plate already exists!' 
-        : 'Something went wrong. Please try again.';
+        : err.response?.data?.message || 'Failed to create/update bus. Please check your inputs and try again.';
+      setError(errorMsg);
       toast.error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -159,8 +216,8 @@ const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
       type: bus.type,
       acType: bus.acType,
       operatorId: bus.operatorId,
-      priceSeater: bus.priceSeater || '',
-      priceSleeper: bus.priceSleeper || ''
+      priceSeater: bus.priceSeater?.toString() || '',
+      priceSleeper: bus.priceSleeper?.toString() || ''
     });
     setEditingBus(bus.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -170,8 +227,7 @@ const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
     if (!window.confirm('Are you sure you want to delete this bus?')) return;
   
     try {
-      
-      const apiDeleteBuses = `${import.meta.env.VITE_API_URL}/bus/${id}`
+      const apiDeleteBuses = `${import.meta.env.VITE_API_URL}/bus/${id}`;
       await axios.delete(apiDeleteBuses);
       toast.success('Bus deleted successfully!');
       fetchBuses();
@@ -188,6 +244,12 @@ const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
     <div className="container-fluid py-4">
       <ToastContainer position="top-right" autoClose={3000} />
       
+      {error && (
+        <div className="alert alert-danger" role="alert">
+          {error}
+        </div>
+      )}
+
       <div className="row g-4">
         {/* Left Column - Form */}
         <div className="col-lg-6">
@@ -334,6 +396,8 @@ const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
                         placeholder="Enter price"
                         value={form.priceSeater}
                         onChange={handleChange}
+                        min="0"
+                        step="0.01"
                         required
                       />
                     </div>
@@ -352,6 +416,8 @@ const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
                         placeholder="Enter price"
                         value={form.priceSleeper}
                         onChange={handleChange}
+                        min="0"
+                        step="0.01"
                         required
                       />
                     </div>
@@ -374,7 +440,7 @@ const apiGetSeats = `${import.meta.env.VITE_API_URL}/seats`
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     className={`btn btn-primary ms-auto ${isLoading ? 'pe-none' : ''}`}
-                    disabled={isLoading}
+                    disabled={isLoading || !!validateForm()}
                   >
                     {isLoading ? (
                       <>
