@@ -231,6 +231,65 @@ app.get('/api/auth/me', async (req, res) => {
 })
 
 
+// app.post('/bus', async (req, res) => {
+//   try {
+//     const {
+//       name,
+//       numberPlate,
+//       routeFrom,
+//       routeTo,
+//       operatorId,
+//       type,
+//       acType,
+//       priceSeater,
+//       priceSleeper,
+//       seatCount,
+//     } = req.body;
+
+//     console.log("Res_ body", req.body);
+
+//     // Validate operator exists
+//     const operator = await prisma.user.findUnique({ where: { id: operatorId } });
+//     if (!operator) {
+//       return res.status(400).json({ message: 'Invalid operator ID' });
+//     }
+
+//     // Check for duplicate bus
+//     const exists = await prisma.bus.findUnique({ where: { numberPlate } });
+//     if (exists) {
+//       return res.status(400).json({ message: 'Bus with this number plate already exists' });
+//     }
+
+//     // Create the bus with default prices set to 0.0 if missing
+//     const bus = await prisma.bus.create({
+//       data: {
+//         name,
+//         numberPlate,
+//         routeFrom,
+//         routeTo,
+//         operator: {
+//           connect: { id: operatorId },
+//         },
+//         type,
+//         acType,
+//         priceSeater: priceSeater ? parseFloat(priceSeater) : 0.0,
+//         priceSleeper: priceSleeper ? parseFloat(priceSleeper) : 0.0,
+//         seatCount,
+//       },
+//     });
+
+//     console.log("Buses", bus);
+//     res.status(201).json(bus);
+//   } catch (error) {
+//     console.error('Error creating bus:', error);
+//     res.status(500).json({ message: 'Internal Server Error' });
+//   }
+// });
+
+
+
+
+
 app.post('/bus', async (req, res) => {
   try {
     const {
@@ -246,43 +305,94 @@ app.post('/bus', async (req, res) => {
       seatCount,
     } = req.body;
 
-    console.log("Res_ body", req.body);
+    console.log("Request body:", req.body);
+
+    // Validate required fields
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ message: 'Bus name is required and must be a non-empty string.' });
+    }
+    if (!numberPlate || typeof numberPlate !== 'string' || numberPlate.trim() === '') {
+      return res.status(400).json({ message: 'Number plate is required and must be a non-empty string.' });
+    }
+    if (!routeFrom || typeof routeFrom !== 'string' || routeFrom.trim() === '') {
+      return res.status(400).json({ message: 'Route From is required and must be a non-empty string.' });
+    }
+    if (!routeTo || typeof routeTo !== 'string' || routeTo.trim() === '') {
+      return res.status(400).json({ message: 'Route To is required and must be a non-empty string.' });
+    }
+    if (!operatorId || typeof operatorId !== 'number') {
+      return res.status(400).json({ message: 'Operator ID is required and must be a number.' });
+    }
+    if (!type || !['28_seater_only', '14_sleeper_upper_28_seater_lower', '14_sleeper_upper_14_sleeper_lower'].includes(type)) {
+      return res.status(400).json({ message: 'Invalid bus type. Must be one of: 28_seater_only, 14_sleeper_upper_28_seater_lower, 14_sleeper_upper_14_sleeper_lower.' });
+    }
+    if (!acType || !['AC', 'Non-AC'].includes(acType)) {
+      return res.status(400).json({ message: 'AC Type must be either AC or Non-AC.' });
+    }
+    if (seatCount == null || typeof seatCount !== 'number' || seatCount <= 0) {
+      return res.status(400).json({ message: 'Seat count is required and must be a positive number.' });
+    }
+
+    // Validate prices based on bus type
+    const parsedPriceSeater = priceSeater ? parseFloat(priceSeater) : 0;
+    const parsedPriceSleeper = priceSleeper ? parseFloat(priceSleeper) : 0;
+
+    if (type === '28_seater_only' && (isNaN(parsedPriceSeater) || parsedPriceSeater <= 0)) {
+      return res.status(400).json({ message: 'Seater price must be a positive number for 28_seater_only configuration.' });
+    }
+    if (type === '14_sleeper_upper_28_seater_lower') {
+      if (isNaN(parsedPriceSeater) || parsedPriceSeater <= 0) {
+        return res.status(400).json({ message: 'Seater price must be a positive number for 14_sleeper_upper_28_seater_lower configuration.' });
+      }
+      if (isNaN(parsedPriceSleeper) || parsedPriceSleeper <= 0) {
+        return res.status(400).json({ message: 'Sleeper price must be a positive number for 14_sleeper_upper_28_seater_lower configuration.' });
+      }
+    }
+    if (type === '14_sleeper_upper_14_sleeper_lower' && (isNaN(parsedPriceSleeper) || parsedPriceSleeper <= 0)) {
+      return res.status(400).json({ message: 'Sleeper price must be a positive number for 14_sleeper_upper_14_sleeper_lower configuration.' });
+    }
 
     // Validate operator exists
     const operator = await prisma.user.findUnique({ where: { id: operatorId } });
     if (!operator) {
-      return res.status(400).json({ message: 'Invalid operator ID' });
+      return res.status(400).json({ message: 'Invalid operator ID. Operator does not exist.' });
     }
 
     // Check for duplicate bus
     const exists = await prisma.bus.findUnique({ where: { numberPlate } });
     if (exists) {
-      return res.status(400).json({ message: 'Bus with this number plate already exists' });
+      return res.status(400).json({ message: 'Bus with this number plate already exists.' });
     }
 
-    // Create the bus with default prices set to 0.0 if missing
+    // Create the bus
     const bus = await prisma.bus.create({
       data: {
-        name,
-        numberPlate,
-        routeFrom,
-        routeTo,
+        name: name.trim(),
+        numberPlate: numberPlate.trim(),
+        routeFrom: routeFrom.trim(),
+        routeTo: routeTo.trim(),
         operator: {
           connect: { id: operatorId },
         },
         type,
         acType,
-        priceSeater: priceSeater ? parseFloat(priceSeater) : 0.0,
-        priceSleeper: priceSleeper ? parseFloat(priceSleeper) : 0.0,
+        priceSeater: parsedPriceSeater,
+        priceSleeper: parsedPriceSleeper,
         seatCount,
       },
     });
 
-    console.log("Buses", bus);
+    console.log("Created bus:", bus);
     res.status(201).json(bus);
   } catch (error) {
     console.error('Error creating bus:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'Bus with this number plate already exists.' });
+    }
+    if (error.code === 'P2003') {
+      return res.status(400).json({ message: 'Invalid operator ID. Operator does not exist.' });
+    }
+    res.status(500).json({ message: 'Failed to create bus. Please try again.' });
   }
 });
 
@@ -290,41 +400,158 @@ app.post('/bus', async (req, res) => {
 
 
 
+// app.post('/seats', async (req, res) => {
+//   const { busId, config, priceSeater, priceSleeper } = req.body;
+
+//   let seatData = [];
+//   let seatNumber = 1;
+
+
+//   // Create upper seats
+//   for (let i = 0; i < config.upper; i++) {
+//     seatData.push({
+//       busId,
+//       seatNumber: `U${seatNumber++}`,
+//       type: config.upperType, // 'sleeper' or 'seater'
+//       position: 'upper',
+//       price: config.upperType === 'sleeper' ? parseInt(priceSleeper) : parseInt(priceSeater)
+//     });
+//   }
+
+//   seatNumber = 1;
+//   // Create lower seats
+//   for (let i = 0; i < config.lower; i++) {
+//     seatData.push({
+//       busId,
+//       seatNumber: `L${seatNumber++}`,
+//       type: config.lowerType, // 'sleeper' or 'seater'
+//       position: 'lower',
+//       price: config.lowerType === 'sleeper' ? parseInt(priceSleeper) : parseInt(priceSeater)
+//     });
+//   }
+
+//   await prisma.seat.createMany({
+//     data: seatData
+//   });
+
+//   res.json({ message: 'Seats created!' });
+// });
+
+
+
+
+
+
 app.post('/seats', async (req, res) => {
-  const { busId, config, priceSeater, priceSleeper } = req.body;
+  try {
+    const { busId, config, priceSeater, priceSleeper } = req.body;
 
-  let seatData = [];
-  let seatNumber = 1;
+    console.log("Request body:", req.body);
 
+    // Validate required fields
+    if (!busId || typeof busId !== 'number') {
+      return res.status(400).json({ error: 'Bus ID is required and must be a number.' });
+    }
+    if (!config || typeof config !== 'object') {
+      return res.status(400).json({ error: 'Config object is required.' });
+    }
+    if (priceSeater == null || isNaN(parseFloat(priceSeater))) {
+      return res.status(400).json({ error: 'Seater price is required and must be a valid number.' });
+    }
+    if (priceSleeper == null || isNaN(parseFloat(priceSleeper))) {
+      return res.status(400).json({ error: 'Sleeper price is required and must be a valid number.' });
+    }
 
-  // Create upper seats
-  for (let i = 0; i < config.upper; i++) {
-    seatData.push({
-      busId,
-      seatNumber: `U${seatNumber++}`,
-      type: config.upperType, // 'sleeper' or 'seater'
-      position: 'upper',
-      price: config.upperType === 'sleeper' ? parseInt(priceSleeper) : parseInt(priceSeater)
+    // Validate config fields
+    const validBusTypes = ['28_seater_only', '14_sleeper_upper_28_seater_lower', '14_sleeper_upper_14_sleeper_lower'];
+    if (!config.busType || !validBusTypes.includes(config.busType)) {
+      return res.status(400).json({ error: 'Invalid bus type. Must be one of: ' + validBusTypes.join(', ') });
+    }
+    if (config.upper == null || typeof config.upper !== 'number' || config.upper < 0) {
+      return res.status(400).json({ error: 'Upper seat count is required and must be a non-negative number.' });
+    }
+    if (config.lower == null || typeof config.lower !== 'number' || config.lower < 0) {
+      return res.status(400).json({ error: 'Lower seat count is required and must be a non-negative number.' });
+    }
+    if (!config.upperType || !['sleeper', 'seater'].includes(config.upperType)) {
+      return res.status(400).json({ error: 'Upper seat type is required and must be either sleeper or seater.' });
+    }
+    if (!config.lowerType || !['sleeper', 'seater'].includes(config.lowerType)) {
+      return res.status(400).json({ error: 'Lower seat type is required and must be either sleeper or seater.' });
+    }
+
+    // Validate bus exists
+    const bus = await prisma.bus.findUnique({ where: { id: busId } });
+    if (!bus) {
+      return res.status(400).json({ error: 'Bus with the provided ID does not exist.' });
+    }
+
+    // Validate seat counts and types match bus type
+    const expectedConfig = {
+      '28_seater_only': { upper: 0, lower: 28, upperType: 'seater', lowerType: 'seater' },
+      '14_sleeper_upper_28_seater_lower': { upper: 14, lower: 28, upperType: 'sleeper', lowerType: 'seater' },
+      '14_sleeper_upper_14_sleeper_lower': { upper: 14, lower: 14, upperType: 'sleeper', lowerType: 'sleeper' },
+    }[config.busType];
+
+    if (config.upper !== expectedConfig.upper || config.lower !== expectedConfig.lower) {
+      return res.status(400).json({ error: `Invalid seat counts for ${config.busType}. Expected upper: ${expectedConfig.upper}, lower: ${expectedConfig.lower}.` });
+    }
+    if (config.upperType !== expectedConfig.upperType || config.lowerType !== expectedConfig.lowerType) {
+      return res.status(400).json({ error: `Invalid seat types for ${config.busType}. Expected upperType: ${expectedConfig.upperType}, lowerType: ${expectedConfig.lowerType}.` });
+    }
+
+    // Validate prices based on seat types
+    if (config.upperType === 'seater' || config.lowerType === 'seater') {
+      if (parseFloat(priceSeater) <= 0) {
+        return res.status(400).json({ error: 'Seater price must be a positive number for configurations with seater seats.' });
+      }
+    }
+    if (config.upperType === 'sleeper' || config.lowerType === 'sleeper') {
+      if (parseFloat(priceSleeper) <= 0) {
+        return res.status(400).json({ error: 'Sleeper price must be a positive number for configurations with sleeper seats.' });
+      }
+    }
+
+    let seatData = [];
+    let upperSeatNumber = 1;
+    let lowerSeatNumber = 1;
+
+    // Create upper seats
+    for (let i = 0; i < config.upper; i++) {
+      seatData.push({
+        busId,
+        seatNumber: `U${upperSeatNumber++}`,
+        type: config.upperType,
+        position: 'upper',
+        price: config.upperType === 'sleeper' ? parseInt(priceSleeper) : parseInt(priceSeater),
+      });
+    }
+
+    // Create lower seats
+    for (let i = 0; i < config.lower; i++) {
+      seatData.push({
+        busId,
+        seatNumber: `L${lowerSeatNumber++}`,
+        type: config.lowerType,
+        position: 'lower',
+        price: config.lowerType === 'sleeper' ? parseInt(priceSleeper) : parseInt(priceSeater),
+      });
+    }
+
+    // Create seats in the database
+    await prisma.seat.createMany({
+      data: seatData,
     });
+
+    console.log("Created seats:", seatData);
+    res.json({ message: 'Seats created!' });
+  } catch (error) {
+    console.error('Error creating seats:', error);
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Invalid bus ID. Bus does not exist.' });
+    }
+    res.status(500).json({ error: 'Failed to create seats. Please try again.' });
   }
-
-  seatNumber = 1;
-  // Create lower seats
-  for (let i = 0; i < config.lower; i++) {
-    seatData.push({
-      busId,
-      seatNumber: `L${seatNumber++}`,
-      type: config.lowerType, // 'sleeper' or 'seater'
-      position: 'lower',
-      price: config.lowerType === 'sleeper' ? parseInt(priceSleeper) : parseInt(priceSeater)
-    });
-  }
-
-  await prisma.seat.createMany({
-    data: seatData
-  });
-
-  res.json({ message: 'Seats created!' });
 });
 
 
